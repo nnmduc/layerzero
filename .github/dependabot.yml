@@ -1,0 +1,77 @@
+# Dependabot version updates
+# Docs: https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# Minor and patch bumps are grouped into one PR per ecosystem to keep noise low.
+# Major bumps still open individual PRs so breaking changes are reviewed one by one.
+
+version: 2
+
+updates:
+  # Python FastAPI backend (backend/requirements.txt)
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Saigon"
+    labels: ["dependencies", "backend"]
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      backend-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # Studio frontend (React + Three.js + Tauri CLI)
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Saigon"
+    labels: ["dependencies", "frontend"]
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      frontend-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # Landing page (Vite + React)
+  - package-ecosystem: "npm"
+    directory: "/landing"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Saigon"
+    labels: ["dependencies", "landing"]
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      landing-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # Tauri v2 desktop wrapper (Rust)
+  - package-ecosystem: "cargo"
+    directory: "/frontend/src-tauri"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Saigon"
+    labels: ["dependencies", "desktop"]
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      cargo-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # GitHub Actions used in .github/workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      timezone: "Asia/Saigon"
+    labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      github-actions:
+        patterns: ["*"]

@@ -7,7 +7,7 @@
 **Universal `.3mf` AI Printability & Aesthetics Optimizer for 3D Printing**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-0071E3.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg?logo=python&logoColor=white)](backend/)
+[![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-3776AB.svg?logo=python&logoColor=white)](backend/)
 [![React 18 + Three.js](https://img.shields.io/badge/Frontend-React%2018%20%2B%20Three.js-61DAFB.svg?logo=react&logoColor=black)](frontend/)
 [![Tauri v2](https://img.shields.io/badge/Desktop-Tauri%20v2-FFC131.svg?logo=tauri&logoColor=black)](frontend/src-tauri/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
@@ -150,7 +150,7 @@ layerzero/
 
 ### Prerequisites
 
-- **Python**: `3.10+`
+- **Python**: `3.12+`
 - **Node.js**: `18+` (with `npm`)
 - **Rust & Cargo** *(Optional — only required for building the native Tauri desktop app)*
 - **Bambu Studio** *(Optional — for 1-click "Open in Bambu Studio" export)*

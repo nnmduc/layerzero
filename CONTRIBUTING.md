@@ -83,7 +83,7 @@ If you want to teach LayerZero to detect and fix a new 3D printing failure mode:
 Before opening a Pull Request, please verify that all components compile and pass checks cleanly:
 
 ### Python Backend
-- Target **Python 3.10+** with full type annotations (`dict[str, Any]`, `list[str]`, `Path`).
+- Target **Python 3.12+** with full type annotations (`dict[str, Any]`, `list[str]`, `Path`).
 - Verify syntax and imports:
   ```bash
   cd backend

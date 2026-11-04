@@ -1,0 +1,103 @@
+# LayerZero Studio — Architecture & Technical Specification
+
+This document provides an in-depth technical reference for contributors and engineers working on **LayerZero Studio**.
+
+---
+
+## 1. High-Level Pipeline
+
+LayerZero Studio operates in a **3-Stage Interactive Workflow**:
+
+1. **Stage 1 — Instant 3D Morphology Profiling (`POST /api/upload` or `POST /api/load-local`)**:
+   - Unpacks the `.3mf` ZIP archive in memory.
+   - Extracts all 3D objects, applies their 3MF affine transformation matrices, computes vectorized surface topology metrics via NumPy, and returns compact indexed mesh buffers (`vertices`, `indices`, `vertex_zones`, `vertex_extruders`, `filament_colours`) for immediate rendering in the Three.js WebGL viewport.
+   - Generates a deterministic baseline audit report (`build_baseline_audit`) used both as structured context for the AI agent and as an instant offline fallback.
+
+2. **Stage 2 — Unleashed Headless AI Audit (`GET /api/analyze/{session_id}`)**:
+   - Spawns `agy -p <prompt> --dangerously-skip-permissions --output-format stream-json --json-schema <audit_schema.json>`.
+   - Streams real-time Server-Sent Events (`type: "log" | "status" | "complete"`) to the frontend Dynamic Island and Live Terminal Drawer.
+   - Validates the structured JSON response containing `diagnostic_cards` and `settings_diff`.
+
+3. **Stage 3 — Non-Destructive `.3mf` Patching & Export (`POST /api/apply`)**:
+   - Clones the original `.3mf` archive and applies **only** the user-approved `diagnostic_cards` and `settings_diff` items.
+   - Preserves multi-color AMS filament slots, flush matrices, prime tower settings, and build plate exclusion zones.
+   - Writes `<stem>_LayerZero_Optimized.3mf` and optionally opens it directly in Bambu Studio.
+
+---
+
+## 2. Universal `.3mf` Parsing & World-Space Math (`backend/profiler.py`)
+
+### 2.1 Dual `.3mf` Format Support
+
+The 3MF specification allows two distinct ways of storing object meshes, both of which LayerZero supports natively:
+
+1. **Bambu Studio / OrcaSlicer Production Extension**:
+   - `3D/3dmodel.model` defines top-level `<object id="N">` assembly containers that reference external sub-models via `<component p:path="/3D/Objects/object_N.model" objectid="M" transform="..."/>`.
+   - Each `3D/Objects/*.model` file contains one or more `<object id="M" type="model"><mesh>...</mesh></object>` blocks. Non-printable modifier meshes (`type="other"`) are automatically filtered out.
+2. **Standard / PrusaSlicer / Cura Single-File `.3mf`**:
+   - `3D/3dmodel.model` embeds `<mesh><vertices>...</vertices><triangles>...</triangles></mesh>` directly inside `<object id="N">`.
+
+### 2.2 12-Float Affine Matrix Transformation & Winding Correction
+
+In 3MF, both `<component transform="...">` and `<build><item transform="..."/>` use a 12-float string:
+`m00 m01 m02 m10 m11 m12 m20 m21 m22 tx ty tz`
+
+`profiler.py` applies the component transform followed by the build-item transform:
+
+```python
+mat = np.array([
+    [tf[0], tf[3], tf[6]],
+    [tf[1], tf[4], tf[7]],
+    [tf[2], tf[5], tf[8]],
+], dtype=np.float32)
+trans = np.array([tf[9], tf[10], tf[11]], dtype=np.float32)
+verts_world = verts @ mat + trans
+```
+
+If an object was mirrored in the slicer, the $3 \times 3$ rotation-scale matrix has a **negative determinant** ($\det(M_c M_i) < 0$), which inverts triangle winding and causes surface normals to point inward. LayerZero detects $\det < 0$ and swaps columns `[0, 2, 1]` of the triangle index array so outward normals remain mathematically exact.
+
+### 2.3 Vectorized Surface Topology Zones
+
+For every triangle with unit normal $\vec{n} = (n_x, n_y, n_z)$, relative height $z_{\text{rel}} = z - z_{\min}$, and normalized height $z_{\text{ratio}} = z_{\text{rel}} / \Delta Z$:
+
+| Zone ID | Name | Mathematical Condition | Visual Highlight in Viewport |
+| :---: | :--- | :--- | :--- |
+| `0` | Standard Surface | Default | Filament Palette Color or Matte Slate |
+| `1` | Author Support Enforcer | `paint_supports` contains `"4"` | Royal Blue (`#0071E3`) in Support Mode |
+| `2` | Author Support Blocker | `paint_supports` contains `"8"` | Coral Red (`#FF3B30`) in Support Mode |
+| `3` | Flat Horizontal Top | $z_{\text{ratio}} \ge 0.60 \land n_z \ge 0.992$ | Cyan (`#30B0C7`) in Surface Mode |
+| `4` | Domed Curvature Top | $z_{\text{ratio}} \ge 0.55 \land 0.68 \le n_z < 0.985$ | Indigo (`#5856D6`) in Surface Mode |
+| `5` | Steep Base Overhang | $z_{\text{rel}} \le 8.0\text{ mm} \land n_z < -0.50$ | Royal Blue (`#0071E3`) in Support Mode |
+
+Additionally, vertices at $z_{\text{rel}} \le 0.24\text{ mm}$ are highlighted in **Emerald Green** (`#28CD41`) to show the true Layer 1 build plate contact footprint.
+
+---
+
+## 3. Non-Destructive `.3mf` Patching (`backend/patcher.py`)
+
+### 3.1 Multi-Color AMS Preservation
+
+When merging system baseline profiles (`0.16mm Optimal @BBL A1`) into `Metadata/project_settings.config`, `patcher.py` protects `PRESERVE_ORIG_KEYS` (including `filament_colour`, `flush_volumes_matrix`, `enable_prime_tower`, `filament_map`, and `printable_area`). For per-filament array settings (e.g., `z_hop`, `overhang_fan_speed`, `slow_down_layer_time`), scalar values are broadcast to match `num_filaments` so multi-slot AMS configurations never lose extruder alignment.
+
+### 3.2 Direct Mesh Clamping (`FLATTEN_BOTTOM`)
+
+When `FLATTEN_BOTTOM` is approved with cut height $\Delta z$ (e.g., $0.80\text{ mm}$):
+1. All vertices in the target object with $z < z_{\min} + \Delta z$ are clamped to $z_{\min} + \Delta z$.
+2. Every vertex $z$ is shifted by $-\Delta z / 2$, and the object's `<item transform>`, `<assemble_item transform>`, and `source_offset_z` metadata are shifted by $-\Delta z / 2$ so the new flat base rests flush on the build plate at $Z = 0$ in Bambu Studio.
+3. Any `paint_supports` attributes on the newly flattened bottom contact triangles ($z_{\text{avg}} < \Delta z + 0.05\text{ mm}$) are stripped.
+
+---
+
+## 4. Three.js WebGL Slicer Viewport (`frontend/src/components/Viewport3D.tsx`)
+
+- **Right-Handed Coordinate Mapping**: Slicer space is $Z$-up ($X$ right, $Y$ back, $Z$ up), whereas Three.js is $Y$-up ($X$ right, $Y$ up, $Z$ front). `Viewport3D.tsx` maps $(v_x, v_y, v_z) \mapsto (v_x, v_z, -v_y)$, which has determinant $+1$ and preserves triangle winding.
+- **Single-Sided Build Plate (`THREE.FrontSide`)**: The PEI build plate plane normal points strictly $+Y$. When the user orbits the camera below the bed ($Y < 0$) or selects **Under-Bed X-Ray Mode**, back-face culling makes the plate transparent from underneath while keeping the grid visible for spatial reference.
+- **Camera Headlamp Lighting**: Two directional lights (`headLight` and `headFill`) are parented to the `THREE.PerspectiveCamera` so facet shading (`flatShading: true`) remains high-contrast from any viewing angle.
+
+---
+
+## 5. Tauri v2 Desktop & Python Sidecar Lifecycle (`frontend/src-tauri/src/main.rs`)
+
+1. On startup, the Rust binary checks if TCP port `8000` is already bound (`is_port_in_use(8000)`).
+2. If not bound, it locates the bundled PyInstaller binary (`Contents/MacOS/layerzero-backend` in production `.app` bundles, or `src-tauri/binaries/layerzero-backend-<arch>-<os>` in dev mode) and spawns it in its own Unix process group (`cmd.process_group(0)`).
+3. When the user quits the desktop app (`RunEvent::Exit`), `kill_sidecar` sends `SIGTERM` to the entire process group (`-pid`), ensuring both the PyInstaller bootloader and child Uvicorn worker processes exit cleanly without leaving orphan processes on port `8000`.

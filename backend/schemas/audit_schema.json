@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LayerZero3MFAuditReport",
+  "type": "object",
+  "required": [
+    "summary",
+    "safety_score_before",
+    "safety_score_after",
+    "aesthetics_score_before",
+    "aesthetics_score_after",
+    "diagnostic_cards",
+    "settings_diff"
+  ],
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "Tóm tắt ngắn gọn tình trạng hình thái học và thông số của file .3mf bằng tiếng Việt"
+    },
+    "safety_score_before": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "safety_score_after": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "aesthetics_score_before": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "aesthetics_score_after": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "diagnostic_cards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "pillar",
+          "object_id",
+          "object_tag",
+          "archetype",
+          "title",
+          "desc",
+          "pill_text",
+          "action_type",
+          "param_value",
+          "approved"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "pillar": {
+            "type": "string",
+            "enum": ["safety", "aesthetics"]
+          },
+          "object_id": { "type": "string" },
+          "object_tag": { "type": "string" },
+          "archetype": { "type": "string" },
+          "title": { "type": "string" },
+          "desc": { "type": "string" },
+          "pill_text": { "type": "string" },
+          "action_type": {
+            "type": "string",
+            "enum": [
+              "FLATTEN_BOTTOM",
+              "REINFORCE_SUPPORTS",
+              "OPTIMIZE_SCREW",
+              "ROTATE_YAW",
+              "ADAPTIVE_LAYER_DOME",
+              "IRONING_FLAT_TOP",
+              "SCARF_SEAM_CYLINDER",
+              "FUZZY_SKIN",
+              "ARACHNE_FINE_DETAIL",
+              "BRIDGE_AND_NECK_COOLING"
+            ]
+          },
+          "param_value": { "type": "number" },
+          "approved": { "type": "boolean" }
+        }
+      }
+    },
+    "settings_diff": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "scope_tag",
+          "object_id",
+          "category",
+          "meaning",
+          "default_val",
+          "author_val",
+          "proposed_val",
+          "reason",
+          "approved"
+        ],
+        "properties": {
+          "key": { "type": "string" },
+          "label": { "type": "string" },
+          "scope_tag": { "type": "string" },
+          "object_id": {
+            "type": "string",
+            "description": "'global' hoặc ID của object cụ thể"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["aesthetics", "adhesion", "kinematics", "support"]
+          },
+          "meaning": { "type": "string" },
+          "default_val": { "type": "string" },
+          "author_val": { "type": "string" },
+          "proposed_val": { "type": "string" },
+          "reason": { "type": "string" },
+          "approved": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

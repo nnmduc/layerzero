@@ -2,7 +2,10 @@
 # Docs: https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 #
 # Minor and patch bumps are grouped into one PR per ecosystem to keep noise low.
-# Major bumps still open individual PRs so breaking changes are reviewed one by one.
+# Major bumps are skipped for app dependencies: they usually need coordinated
+# manual upgrades (e.g. react + react-dom, vite + @vitejs/plugin-react).
+# Security updates are not affected by these ignore rules.
+# GitHub Actions keep major bumps because they are low-risk and CI-verified.
 
 version: 2
 
@@ -17,6 +20,9 @@ updates:
     labels: ["dependencies", "backend"]
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       backend-minor-patch:
         update-types: ["minor", "patch"]
@@ -31,6 +37,9 @@ updates:
     labels: ["dependencies", "frontend"]
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       frontend-minor-patch:
         update-types: ["minor", "patch"]
@@ -45,6 +54,9 @@ updates:
     labels: ["dependencies", "landing"]
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       landing-minor-patch:
         update-types: ["minor", "patch"]
@@ -59,6 +71,9 @@ updates:
     labels: ["dependencies", "desktop"]
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       cargo-minor-patch:
         update-types: ["minor", "patch"]

@@ -318,5 +318,5 @@ def download_optimized_3mf(session_id: str) -> FileResponse:
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
-    port = int(os.environ.get("LAYERZERO_PORT", "8000"))
+    port = int(os.environ.get("LAYERZERO_PORT", "8008"))
     uvicorn.run(app, host="127.0.0.1", port=port, log_level="info")

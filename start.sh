@@ -14,8 +14,8 @@ if [ ! -d "$DIR/frontend/node_modules" ]; then
   (cd "$DIR/frontend" && npm install)
 fi
 
-echo "Starting LayerZero Backend (FastAPI on :8000)..."
-(cd "$DIR/backend" && ./.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000) &
+echo "Starting LayerZero Backend (FastAPI on :8008)..."
+(cd "$DIR/backend" && ./.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8008) &
 BE_PID=$!
 
 echo "Starting LayerZero Frontend (Vite on :5173)..."

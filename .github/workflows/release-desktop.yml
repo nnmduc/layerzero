@@ -91,8 +91,8 @@ jobs:
       - name: Stage Linux Release Assets
         run: |
           mkdir -p release-assets
-          cp frontend/src-tauri/target/release/bundle/appimage/*.AppImage release-assets/LayerZero_2.0.0_Linux_x64.AppImage
-          cp frontend/src-tauri/target/release/bundle/deb/*.deb release-assets/LayerZero_2.0.0_Linux_amd64.deb
+          cp frontend/src-tauri/target/release/bundle/appimage/*.AppImage release-assets/LayerZero_2.1.0_Linux_x64.AppImage
+          cp frontend/src-tauri/target/release/bundle/deb/*.deb release-assets/LayerZero_2.1.0_Linux_amd64.deb
           ls -lh release-assets/
 
       - name: Upload Linux Artifacts
@@ -165,8 +165,8 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path "release-assets" | Out-Null
-          Get-ChildItem "frontend/src-tauri/target/release/bundle/nsis/*.exe" | Select-Object -First 1 | Copy-Item -Destination "release-assets/LayerZero_2.0.0_Windows_x64-setup.exe"
-          Get-ChildItem "frontend/src-tauri/target/release/bundle/msi/*.msi" | Select-Object -First 1 | Copy-Item -Destination "release-assets/LayerZero_2.0.0_Windows_x64.msi"
+          Get-ChildItem "frontend/src-tauri/target/release/bundle/nsis/*.exe" | Select-Object -First 1 | Copy-Item -Destination "release-assets/LayerZero_2.1.0_Windows_x64-setup.exe"
+          Get-ChildItem "frontend/src-tauri/target/release/bundle/msi/*.msi" | Select-Object -First 1 | Copy-Item -Destination "release-assets/LayerZero_2.1.0_Windows_x64.msi"
           Get-ChildItem "release-assets"
 
       - name: Upload Windows Artifacts
@@ -186,27 +186,27 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      - name: Publish / Update GitHub Release v2.0.0
+      - name: Publish / Update GitHub Release v2.1.0
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v2.0.0
-          name: "LayerZero Studio v2.0.0 (macOS · Windows · Linux)"
+          tag_name: ${{ github.ref_name }}
+          name: "LayerZero Studio v2.1.0 (macOS · Windows · Linux)"
           body: |
-            ## LayerZero Studio v2.0.0 — Universal `.3mf` AI Printability & Aesthetics Optimizer
+            ## LayerZero Studio v2.1.0 — Universal `.3mf` AI Printability & Aesthetics Optimizer
 
             ### 📥 Direct Downloads
 
             #### 🍎 macOS (Apple Developer ID Signed)
-            - **Apple Silicon (M1 – M4)**: [LayerZero_2.0.0_Apple_Silicon_arm64.dmg](https://dl.layerzero.io.vn/LayerZero_2.0.0_Apple_Silicon_arm64.dmg)
-            - **Mac Intel (x86_64)**: [LayerZero_2.0.0_Intel_x64.dmg](https://dl.layerzero.io.vn/LayerZero_2.0.0_Intel_x64.dmg)
+            - **Apple Silicon (M1 – M4)**: [LayerZero_2.1.0_Apple_Silicon_arm64.dmg](https://dl.layerzero.io.vn/LayerZero_2.1.0_Apple_Silicon_arm64.dmg)
+            - **Mac Intel (x86_64)**: [LayerZero_2.1.0_Intel_x64.dmg](https://dl.layerzero.io.vn/LayerZero_2.1.0_Intel_x64.dmg)
 
             #### 🪟 Windows (Windows 10 / 11 64-bit)
-            - **Windows Installer (NSIS `.exe`)**: `LayerZero_2.0.0_Windows_x64-setup.exe` *(Attached below)*
-            - **Windows MSI Package (`.msi`)**: `LayerZero_2.0.0_Windows_x64.msi` *(Attached below)*
+            - **Windows Installer (NSIS `.exe`)**: `LayerZero_2.1.0_Windows_x64-setup.exe` *(Attached below)*
+            - **Windows MSI Package (`.msi`)**: `LayerZero_2.1.0_Windows_x64.msi` *(Attached below)*
 
             #### 🐧 Linux (Ubuntu / Debian / Fedora / Arch x86_64)
-            - **Universal AppImage**: `LayerZero_2.0.0_Linux_x64.AppImage` *(Attached below — `chmod +x` and run)*
-            - **Ubuntu / Debian Package (`.deb`)**: `LayerZero_2.0.0_Linux_amd64.deb` *(Attached below — `sudo apt install ./LayerZero_2.0.0_Linux_amd64.deb`)*
+            - **Universal AppImage**: `LayerZero_2.1.0_Linux_x64.AppImage` *(Attached below — `chmod +x` and run)*
+            - **Ubuntu / Debian Package (`.deb`)**: `LayerZero_2.1.0_Linux_amd64.deb` *(Attached below — `sudo apt install ./LayerZero_2.1.0_Linux_amd64.deb`)*
           draft: false
           prerelease: false
           files: artifacts/*

@@ -11,6 +11,8 @@ interface Viewport3DProps {
   viewMode: 'support' | 'surface' | 'xray';
   flattenMm: number;
   onSelectObject: (oid: string) => void;
+  showLeftPanel?: boolean;
+  showRightPanel?: boolean;
 }
 
 export const Viewport3D: React.FC<Viewport3DProps> = ({
@@ -20,10 +22,13 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   selectedCard,
   viewMode,
   flattenMm,
+  showLeftPanel,
+  showRightPanel,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const meshGroupRef = useRef<THREE.Group | null>(null);
   const cutPlaneRef = useRef<THREE.Mesh | null>(null);
@@ -51,6 +56,10 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     renderer.setSize(w, h);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
+    renderer.domElement.style.display = 'block';
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
+    rendererRef.current = renderer;
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
 
@@ -155,20 +164,49 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
 
     const handleResize = () => {
       if (!container) return;
-      camera.aspect = container.clientWidth / container.clientHeight;
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      if (width <= 0 || height <= 0) return;
+      camera.aspect = width / height;
       camera.updateProjectionMatrix();
-      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setSize(width, height);
     };
+
+    const resizeObserver = new ResizeObserver(() => {
+      handleResize();
+    });
+    resizeObserver.observe(container);
     window.addEventListener('resize', handleResize);
 
     return () => {
       cancelAnimationFrame(reqId);
+      resizeObserver.disconnect();
       window.removeEventListener('resize', handleResize);
       renderer.domElement.removeEventListener('pointerdown', stopAutoCamera);
       renderer.domElement.removeEventListener('wheel', stopAutoCamera);
       renderer.dispose();
+      rendererRef.current = null;
     };
   }, []);
+
+  // Force synchronous viewport re-center whenever Left or Right panels toggle
+  useEffect(() => {
+    const handleImmediateResize = () => {
+      const container = containerRef.current;
+      const camera = cameraRef.current;
+      const renderer = rendererRef.current;
+      if (!container || !camera || !renderer) return;
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (w <= 0 || h <= 0) return;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    };
+    handleImmediateResize();
+    const frameId = requestAnimationFrame(handleImmediateResize);
+    return () => cancelAnimationFrame(frameId);
+  }, [showLeftPanel, showRightPanel]);
 
   // Build 100% Solid Indexed BufferGeometries with exact Slicer Shading & Build Plate Coordinates
   useEffect(() => {

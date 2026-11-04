@@ -107,7 +107,7 @@ For a deep dive into the coordinate math, XML namespaces, and data structures, r
 | `ROTATE_YAW` | Safety | Tunes bed-slinger Y-axis kinematics (`4000 mm/s²` acceleration, `0.8mm` Normal Lift Z-Hop, disabled infill retraction reduction). |
 | `ADAPTIVE_LAYER_DOME` | Aesthetics | Sets `0.16mm` optimal layer height and per-object `concentric` top surface pattern on domed shells (`0.68 <= normal_z < 0.985`). |
 | `IRONING_FLAT_TOP` | Aesthetics | Enables per-object `topmost` ironing (`12%` flow, `30 mm/s` speed, `0.15mm` spacing) strictly on objects with large flat horizontal tops (`normal_z >= 0.992`). |
-| `SCARF_SEAM_CYLINDER` | Aesthetics | Enables per-object `contour` Scarf Joint Seam (`seam_slope_type`) and global `G2/G3` Arc Fitting on high-symmetry cylindrical parts. |
+| `SCARF_SEAM_CYLINDER` | Aesthetics | Enables per-object `external` Scarf Joint Seam (`seam_slope_type`) and global `G2/G3` Arc Fitting on high-symmetry cylindrical parts. |
 | `FUZZY_SKIN` | Aesthetics | Optional per-object outside matte texture (`0.3mm` point distance, `0.2mm` thickness; disabled by default). |
 
 ### 4. Interactive 3-Pane Studio & Slicer Viewport (`frontend/`)

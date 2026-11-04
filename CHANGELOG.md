@@ -5,6 +5,24 @@ All notable changes to **LayerZero Studio** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-11-04
+
+### Fixed & Improved
+- **Scarf Joint Seam (`seam_slope_type`) Bambu Studio Compatibility**:
+  - Replaced legacy `"contour"` enum value with official Bambu Studio PrintConfigDef `"external"` parameter across patcher, telemetry, and metadata generators.
+  - Implemented automatic runtime normalization (`"contour"` -> `"external"`, `"contour_and_hole"` -> `"all"`) in `backend/patcher.py`, completely eliminating Bambu Studio load-time reset warnings.
+- **Slicer Diff Panel (Right Sidebar) Layout**:
+  - Replaced rigid 12-column table with a clean 2-tier card layout compliant with Apple HIG, eliminating text overlap on long setting names and overrides.
+  - Placed proposed values on top with editable input; origin values below.
+  - Consolidated duplicate values: if default value equals author value, only a single `Gốc: <value>` strikethrough is displayed.
+- **Multi-Plate Navigation & Filtering (Left Sidebar)**:
+  - Clicking any diagnostic card or slicer setting override now automatically navigates to and focuses the matching plate (`setActivePlateId`).
+  - Added plate-level filtering toggle (`Khay P{id}` vs `Tất cả`) and plate badge indicators across all recommendation cards.
+- **HUD & 3D Viewport Controls**:
+  - Relocated 3D color legend to the top-left underneath the plate bar, eliminating tooltip collisions.
+  - Streamlined view mode switcher to strictly 2 core modes: Safety (`Support`) and Aesthetics (`Surface`), removing the phantom third button.
+  - Added `data-tip-pos="bottom-right"` positioning ensuring tooltips render cleanly below buttons without clipping.
+
 ## [2.0.1] - 2026-11-04
 
 ### Added

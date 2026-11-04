@@ -15,14 +15,28 @@ use std::os::windows::process::CommandExt;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
+const DEFAULT_PORT: u16 = 8008;
+
 struct SidecarState(Mutex<Option<Child>>);
 
-fn is_port_in_use(port: u16) -> bool {
-    TcpStream::connect_timeout(
+fn is_layerzero_healthy(port: u16) -> bool {
+    if let Ok(stream) = TcpStream::connect_timeout(
         &format!("127.0.0.1:{}", port).parse().unwrap(),
         Duration::from_millis(250),
-    )
-    .is_ok()
+    ) {
+        use std::io::{Read, Write};
+        let mut s = stream;
+        let _ = s.set_read_timeout(Some(Duration::from_millis(300)));
+        let req = format!("GET /api/health HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nConnection: close\r\n\r\n", port);
+        if s.write_all(req.as_bytes()).is_ok() {
+            let mut buf = [0u8; 512];
+            if let Ok(n) = s.read(&mut buf) {
+                let resp = String::from_utf8_lossy(&buf[..n]);
+                return resp.contains("layerzero-backend");
+            }
+        }
+    }
+    false
 }
 
 fn target_triple_suffixes() -> Vec<String> {
@@ -130,10 +144,10 @@ fn main() {
     tauri::Builder::default()
         .manage(SidecarState(Mutex::new(None)))
         .setup(|app| {
-            if !is_port_in_use(8000) {
+            if !is_layerzero_healthy(DEFAULT_PORT) {
                 if let Some(bin_path) = find_sidecar_binary() {
                     let mut cmd = Command::new(&bin_path);
-                    cmd.env("LAYERZERO_PORT", "8000")
+                    cmd.env("LAYERZERO_PORT", DEFAULT_PORT.to_string())
                         .env("PATH", build_enriched_path())
                         .stdout(Stdio::null())
                         .stderr(Stdio::null());

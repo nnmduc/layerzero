@@ -168,12 +168,12 @@ fi
 
 # 1. Build Apple Silicon (aarch64-apple-darwin)
 build_sidecar "aarch64-apple-darwin" "$DIR/backend/.venv" ""
-build_tauri_dmg "aarch64-apple-darwin" "LayerZero_2.0.0_Apple_Silicon_arm64.dmg" "LayerZero (Apple Silicon)"
+build_tauri_dmg "aarch64-apple-darwin" "LayerZero_2.1.0_Apple_Silicon_arm64.dmg" "LayerZero (Apple Silicon)"
 
 # 2. Optionally build Intel (x86_64-apple-darwin) if .venv-x86_64 is present
 if [ -d "$DIR/backend/.venv-x86_64" ]; then
   build_sidecar "x86_64-apple-darwin" "$DIR/backend/.venv-x86_64" "arch -x86_64"
-  build_tauri_dmg "x86_64-apple-darwin" "LayerZero_2.0.0_Intel_x64.dmg" "LayerZero (Intel)"
+  build_tauri_dmg "x86_64-apple-darwin" "LayerZero_2.1.0_Intel_x64.dmg" "LayerZero (Intel)"
 fi
 
 echo ""

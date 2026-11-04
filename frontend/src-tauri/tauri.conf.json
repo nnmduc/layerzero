@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "LayerZero",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "identifier": "vn.io.layerzero.studio",
   "build": {
     "frontendDist": "../dist",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "LayerZero Studio v2.0 — Universal 3MF AI Printability & Aesthetics Optimizer",
+        "title": "LayerZero Studio v2.1 — Universal 3MF AI Printability & Aesthetics Optimizer",
         "width": 1440,
         "height": 900,
         "minWidth": 1100,

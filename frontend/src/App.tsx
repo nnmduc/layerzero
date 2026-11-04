@@ -14,7 +14,7 @@ import {
 const API_BASE =
   typeof window !== 'undefined' && window.location.port === '5173'
     ? ''
-    : 'http://127.0.0.1:8000';
+    : 'http://127.0.0.1:8008';
 
 const IS_DESKTOP =
   typeof window !== 'undefined' &&
@@ -33,6 +33,7 @@ export const App: React.FC = () => {
   // Live Agent Activity Stream State
   const [agentLogs, setAgentLogs] = useState<AgentActivityLog[]>([]);
   const [showAgentDrawer, setShowAgentDrawer] = useState<boolean>(false);
+  const [exportFormat, setExportFormat] = useState<'3mf' | 'stl'>('3mf');
 
   // Panel Visibility State (Left & Right Collapsible Sidebars)
   const [showLeftPanel, setShowLeftPanel] = useState<boolean>(true);
@@ -40,6 +41,7 @@ export const App: React.FC = () => {
 
   // Filter & Selection State
   const [activePlateId, setActivePlateId] = useState<string>('1');
+  const [leftPlateFilter, setLeftPlateFilter] = useState<'current' | 'all'>('current');
   const [leftPillarFilter, setLeftPillarFilter] = useState<'all' | 'safety' | 'aesthetics'>('all');
   const [rightCategoryFilter, setRightCategoryFilter] = useState<
     'all' | 'aesthetics' | 'adhesion' | 'kinematics' | 'support'
@@ -299,6 +301,10 @@ export const App: React.FC = () => {
             const firstC = rep.diagnostic_cards[0];
             setSelectedCardId(firstC.id);
             setSelectedObjectId(firstC.object_id);
+            const ownerPlate = telemetry?.plates.find((p) =>
+              p.object_ids.includes(firstC.object_id)
+            );
+            if (ownerPlate) setActivePlateId(ownerPlate.id);
             if (firstC.action_type === 'FLATTEN_BOTTOM') {
               setFlattenMm(firstC.param_value || 0.8);
             }
@@ -431,10 +437,23 @@ export const App: React.FC = () => {
 
   // Derived data for UI
   const cards = audit?.diagnostic_cards || [];
-  const filteredCards =
-    leftPillarFilter === 'all' ? cards : cards.filter((c) => c.pillar === leftPillarFilter);
-
   const settings = audit?.settings_diff || [];
+
+  const isMultiPlate = (telemetry?.plates?.length || 0) > 1;
+  const activePlate = telemetry?.plates.find((p) => p.id === activePlateId);
+  const activePlateObjectIds = activePlate ? activePlate.object_ids : [];
+
+  // Filter cards by current plate if multi-plate and leftPlateFilter === 'current'
+  const cardsForPlate =
+    isMultiPlate && leftPlateFilter === 'current'
+      ? cards.filter((c) => activePlateObjectIds.includes(c.object_id))
+      : cards;
+
+  const filteredCards =
+    leftPillarFilter === 'all'
+      ? cardsForPlate
+      : cardsForPlate.filter((c) => c.pillar === leftPillarFilter);
+
   const filteredSettings =
     rightCategoryFilter === 'all'
       ? settings
@@ -444,9 +463,6 @@ export const App: React.FC = () => {
   const activeObject: ObjectTelemetry | undefined = telemetry?.objects.find(
     (o) => o.id === selectedObjectId
   );
-
-  const activePlate = telemetry?.plates.find((p) => p.id === activePlateId);
-  const activePlateObjectIds = activePlate ? activePlate.object_ids : [];
 
   const approvedCardsCount = cards.filter((c) => c.approved).length;
   const approvedSettingsCount = settings.filter((s) => s.approved).length;
@@ -488,21 +504,8 @@ export const App: React.FC = () => {
       {/* TOP NAVIGATION BAR (56px, Compact & Screen-Size Resilient)            */}
       {/* ===================================================================== */}
       <header className="h-14 px-4 flex items-center justify-between gap-3 border-b border-black/[0.06] dark:border-white/[0.08] bg-white/75 dark:bg-[#161618]/80 backdrop-blur-xl z-30 shrink-0">
-        {/* Left: Toggle Left Sidebar + Brand + Active 3MF File + Printer/Filament Preset */}
+        {/* Left: Brand + Active 3MF File + Printer/Filament Preset + AI CLI */}
         <div className="flex items-center gap-2.5 min-w-0">
-          <button
-            onClick={() => setShowLeftPanel((v) => !v)}
-            data-tip={showLeftPanel ? 'Thu gọn bảng Chẩn đoán trái' : 'Mở bảng Chẩn đoán trái'}
-            data-tip-pos="bottom"
-            className={`w-8 h-8 rounded-[9px] flex items-center justify-center spring-transition shrink-0 ${
-              showLeftPanel
-                ? 'bg-[#0071E3]/12 text-[#0071E3]'
-                : 'text-[#6E6E73] hover:text-[#1D1D1F] dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08]'
-            }`}
-          >
-            <i className="ph-bold ph-sidebar-simple text-base"></i>
-          </button>
-
           <div className="flex items-center gap-2 shrink-0">
             <div className="w-8 h-8 rounded-[10px] bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F] flex items-center justify-center shadow-sm shrink-0">
               <i className="ph-bold ph-cube-focus text-lg"></i>
@@ -517,33 +520,25 @@ export const App: React.FC = () => {
 
           <div className="hidden sm:block h-4 w-[1px] bg-black/[0.08] dark:bg-white/[0.1] shrink-0"></div>
 
-          {/* Active 3MF / STL File Selector */}
+          {/* Active 3MF / STL File Selector (Compact Icon with Rich Tooltip) */}
           <button
             onClick={() => setShowDropzone(true)}
-            data-tip="Mở hoặc đổi file mô hình .3mf / .stl khác"
+            data-tip={
+              telemetry
+                ? `Đang mở: ${telemetry.filename} (${telemetry.plates.length} bàn · ${telemetry.objects.length} chi tiết · ${telemetry.file_size_mb} MB) — Bấm để đổi file`
+                : 'Mở mô hình 3D (.3mf / .stl) hoặc chọn từ ~/Downloads'
+            }
             data-tip-pos="bottom"
-            className="flex items-center gap-2 px-2.5 py-1.5 rounded-[10px] bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] active:scale-[0.98] spring-transition text-left min-w-0"
+            className={`relative w-8 h-8 rounded-[10px] flex items-center justify-center spring-transition shrink-0 ${
+              telemetry
+                ? 'bg-[#0071E3]/12 text-[#0071E3] hover:bg-[#0071E3]/20'
+                : 'bg-black/[0.04] dark:bg-white/[0.06] text-[#6E6E73] hover:text-[#1D1D1F] dark:hover:text-white hover:bg-black/[0.08] dark:hover:bg-white/[0.12]'
+            }`}
           >
-            <i className="ph-fill ph-file-archive text-[#0071E3] text-base shrink-0"></i>
-            <div className="min-w-0">
-              <div className="text-[12px] sm:text-[12.5px] font-medium leading-none flex items-center gap-1.5">
-                <span className="max-w-[100px] sm:max-w-[145px] xl:max-w-[180px] truncate">
-                  {telemetry ? telemetry.filename : 'Chọn file .3mf / .stl...'}
-                </span>
-                {telemetry && (
-                  <span className="text-[9px] sm:text-[9.5px] font-mono font-semibold uppercase px-1 py-0.2 rounded bg-[#0071E3]/12 text-[#0071E3] shrink-0">
-                    {telemetry.source_format ||
-                      (telemetry.filename.toLowerCase().endsWith('.stl') ? 'stl' : '3mf')}
-                  </span>
-                )}
-                <i className="ph-bold ph-folder-open text-[#0071E3] text-xs shrink-0"></i>
-              </div>
-              <div className="hidden sm:block text-[10px] text-[#6E6E73] dark:text-[#8E8E93] font-mono mt-0.5 whitespace-nowrap">
-                {telemetry
-                  ? `${telemetry.plates.length}P · ${telemetry.objects.length}Obj · ${telemetry.file_size_mb}MB`
-                  : 'Hỗ trợ .3mf & .stl'}
-              </div>
-            </div>
+            <i className="ph-bold ph-folder-open text-base"></i>
+            {telemetry && (
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#28CD41] ring-2 ring-white dark:ring-[#161618]"></span>
+            )}
           </button>
 
           {/* Target Printer & Filament Selector (Desktop Only) */}
@@ -575,15 +570,15 @@ export const App: React.FC = () => {
             </select>
           </div>
 
-          {/* AI Engine CLI Selector (Wide Screens Only; on smaller screens select in Left Action Card) */}
+          {/* AI Engine CLI Selector (Always Visible on all screen sizes) */}
           <div
             data-tip={
               hasMultipleClis
-                ? 'Đã phát hiện nhiều CLI (Claude Code & agy) · Chọn CLI AI bạn muốn dùng'
+                ? `Đang dùng: ${availableEngines.find((e) => e.id === selectedAgent)?.name || selectedAgent} · Click để đổi CLI AI`
                 : 'Công cụ AI thực thi phân tích & tối ưu Slicer'
             }
             data-tip-pos="bottom"
-            className={`hidden 2xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] border text-[11.5px] shrink-0 whitespace-nowrap spring-transition ${
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] border text-[11.5px] shrink-0 whitespace-nowrap spring-transition ${
               hasMultipleClis
                 ? 'border-[#0071E3]/35 bg-[#0071E3]/[0.06] dark:bg-[#0071E3]/15'
                 : 'border-black/[0.06] dark:border-white/[0.08] bg-white/50 dark:bg-white/[0.02]'
@@ -610,7 +605,7 @@ export const App: React.FC = () => {
             <select
               value={selectedAgent}
               onChange={(e) => setSelectedAgent(e.target.value as any)}
-              className="bg-transparent font-medium text-[#1D1D1F] dark:text-white focus:outline-none cursor-pointer"
+              className="bg-transparent font-medium text-[#1D1D1F] dark:text-white focus:outline-none cursor-pointer max-w-[110px] sm:max-w-none truncate"
             >
               {availableEngines.length > 0 ? (
                 availableEngines.map((eng) => (
@@ -632,44 +627,11 @@ export const App: React.FC = () => {
               )}
             </select>
             {hasMultipleClis && (
-              <span className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded-full bg-[#0071E3]/20 text-[#0071E3] font-mono">
+              <span className="hidden sm:inline text-[9.5px] font-semibold px-1.5 py-0.5 rounded-full bg-[#0071E3]/20 text-[#0071E3] font-mono">
                 Multi-CLI
               </span>
             )}
           </div>
-        </div>
-
-        {/* Center: Dynamic Island Headless AI Agent Status & Log Drawer Toggle */}
-        <div className="flex items-center min-w-0 max-w-[160px] sm:max-w-[220px] md:max-w-[300px] shrink">
-          <button
-            onClick={() => {
-              if (!audit && !isAnalyzing && sessionId) {
-                triggerAiAnalysis();
-              } else {
-                setShowAgentDrawer(!showAgentDrawer);
-              }
-            }}
-            data-tip={`Nhật ký suy luận ${agentBrandName} (${agentLogs.length} bước) — Bấm để đóng/mở`}
-            data-tip-pos="bottom"
-            className="apple-pill-glass px-2.5 sm:px-3 py-1.5 rounded-full flex items-center gap-1.5 sm:gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.99] spring-transition min-w-0 max-w-full"
-          >
-            <span
-              className={`w-2 h-2 rounded-full shrink-0 ${
-                isAnalyzing || isLoadingFile
-                  ? 'bg-[#FF9F0A] animate-ping'
-                  : audit
-                  ? 'bg-[#28CD41]'
-                  : 'bg-[#0071E3]'
-              }`}
-            ></span>
-            <span className="text-[11px] sm:text-[11.5px] font-medium tracking-tight truncate">
-              {islandStatus}
-            </span>
-            <span className="text-[10px] sm:text-[11px] font-mono px-1.5 py-0.5 rounded-full bg-[#0071E3]/10 text-[#0071E3] font-semibold flex items-center gap-1 shrink-0 whitespace-nowrap">
-              <i className="ph-bold ph-terminal-window"></i>
-              <span>{agentLogs.length}</span>
-            </span>
-          </button>
         </div>
 
         {/* Right: Compact Icon Actions with Tooltips */}
@@ -683,35 +645,34 @@ export const App: React.FC = () => {
             <i className={`ph ${darkMode ? 'ph-sun' : 'ph-moon'} text-base`}></i>
           </button>
 
-          <button
-            onClick={() => handleApplyAndExport(false, 'stl')}
-            disabled={!audit}
-            data-tip="Xuất lưới .STL đã vạt đáy & tối ưu hình học vào ~/Downloads"
-            data-tip-pos="bottom-right"
-            className={`hidden lg:flex px-2.5 h-8 rounded-full text-[11px] font-mono font-semibold spring-transition items-center gap-1 shrink-0 ${
-              audit
-                ? 'text-[#1D1D1F] dark:text-white bg-black/[0.05] dark:bg-white/[0.08] hover:bg-black/[0.1] dark:hover:bg-white/[0.15] active:scale-[0.96]'
-                : 'opacity-40 cursor-not-allowed bg-black/[0.04] dark:bg-white/[0.05]'
-            }`}
-          >
-            <i className="ph-bold ph-cube text-sm"></i>
-            <span>.STL</span>
-          </button>
-
-          <button
-            onClick={() => handleApplyAndExport(false, '3mf')}
-            disabled={!audit}
-            data-tip="Xuất file dự án .3MF tối ưu (kèm Support & Slicer Config) vào ~/Downloads"
-            data-tip-pos="bottom-right"
-            className={`hidden sm:flex px-2.5 h-8 rounded-full text-[11px] font-mono font-semibold spring-transition items-center gap-1 shrink-0 ${
-              audit
-                ? 'text-[#1D1D1F] dark:text-white bg-black/[0.05] dark:bg-white/[0.08] hover:bg-black/[0.1] dark:hover:bg-white/[0.15] active:scale-[0.96]'
-                : 'opacity-40 cursor-not-allowed bg-black/[0.04] dark:bg-white/[0.05]'
-            }`}
-          >
-            <i className="ph-bold ph-download-simple text-sm"></i>
-            <span>.3MF</span>
-          </button>
+          {/* Unified Export Button with Dropdown (.3MF default, .STL optional) */}
+          <div className="flex items-center rounded-full border border-black/[0.08] dark:border-white/[0.1] bg-black/[0.04] dark:bg-white/[0.06] p-0.5 shrink-0">
+            <button
+              onClick={() => handleApplyAndExport(false, exportFormat)}
+              disabled={!audit}
+              data-tip={`Xuất file .${exportFormat.toUpperCase()} đã tối ưu vào ~/Downloads`}
+              data-tip-pos="bottom-right"
+              className={`px-2.5 h-7 rounded-full text-[11px] font-mono font-semibold spring-transition flex items-center gap-1.5 ${
+                audit
+                  ? 'text-[#1D1D1F] dark:text-white hover:bg-black/[0.08] dark:hover:bg-white/[0.12] active:scale-[0.96] cursor-pointer'
+                  : 'opacity-40 cursor-not-allowed'
+              }`}
+            >
+              <i className="ph-bold ph-download-simple text-xs"></i>
+              <span>Xuất .{exportFormat.toUpperCase()}</span>
+            </button>
+            <select
+              value={exportFormat}
+              onChange={(e) => setExportFormat(e.target.value as '3mf' | 'stl')}
+              disabled={!audit}
+              data-tip="Chọn định dạng xuất: .3MF (kèm Slicer Config) hoặc .STL (lưới 3D vạt đáy)"
+              data-tip-pos="bottom-right"
+              className="bg-transparent text-[10px] font-mono font-semibold text-[#6E6E73] dark:text-[#A1A1A6] hover:text-[#1D1D1F] dark:hover:text-white px-1.5 h-7 border-l border-black/[0.08] dark:border-white/[0.1] focus:outline-none cursor-pointer"
+            >
+              <option value="3mf">.3MF</option>
+              <option value="stl">.STL</option>
+            </select>
+          </div>
 
           <button
             onClick={() => handleApplyAndExport(true, '3mf')}
@@ -728,94 +689,8 @@ export const App: React.FC = () => {
             <span className="hidden sm:inline">Bambu Studio</span>
             <span className="sm:hidden">Bambu</span>
           </button>
-
-          <button
-            onClick={() => setShowRightPanel((v) => !v)}
-            data-tip={showRightPanel ? 'Thu gọn bảng Thông số phải' : 'Mở bảng Thông số phải'}
-            data-tip-pos="bottom-right"
-            className={`w-8 h-8 rounded-[9px] flex items-center justify-center spring-transition shrink-0 ${
-              showRightPanel
-                ? 'bg-[#0071E3]/12 text-[#0071E3]'
-                : 'text-[#6E6E73] hover:text-[#1D1D1F] dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08]'
-            }`}
-          >
-            <i className="ph-bold ph-sidebar-simple text-base scale-x-[-1]"></i>
-          </button>
         </div>
       </header>
-
-      {/* ===================================================================== */}
-      {/* EXPANDABLE AGENT LIVE TERMINAL DRAWER (Shows every `agy` action)      */}
-      {/* ===================================================================== */}
-      {showAgentDrawer && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 w-[680px] max-w-[92vw] apple-glass rounded-[20px] p-4 z-40 shadow-2xl border border-white/60 dark:border-white/15">
-          <div className="flex items-center justify-between pb-3 border-b border-black/[0.06] dark:border-white/[0.08]">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-[8px] bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F] flex items-center justify-center">
-                <i className="ph-bold ph-terminal-window text-sm"></i>
-              </div>
-              <div>
-                <div className="text-[13px] font-semibold flex items-center gap-2">
-                  <span>Tiến trình Suy luận & Hành động của {agentBrandName} (Unleashed Mode)</span>
-                  {isAnalyzing && (
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#FF9F0A]/15 text-[#FF9F0A]">
-                      Đang thực thi...
-                    </span>
-                  )}
-                </div>
-                <div className="text-[11px] text-[#6E6E73] dark:text-[#A1A1A6] font-mono">
-                  Toàn quyền gọi Bash, Python, đọc XML/JSON & đối chiếu hình học 3D
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {sessionId && !isAnalyzing && (
-                <button
-                  onClick={triggerAiAnalysis}
-                  className="px-3 py-1 rounded-full text-[11.5px] font-medium bg-[#0071E3] text-white hover:bg-[#0077ED]"
-                >
-                  Chạy lại {agentBrandName}
-                </button>
-              )}
-              <button
-                onClick={() => setShowAgentDrawer(false)}
-                className="w-7 h-7 rounded-full flex items-center justify-center text-[#6E6E73] hover:bg-black/5 dark:hover:bg-white/10"
-              >
-                <i className="ph-bold ph-x"></i>
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-3 max-h-64 overflow-y-auto space-y-2 pr-1 font-mono text-[11.5px]">
-            {agentLogs.map((log) => (
-              <div
-                key={log.id}
-                className="p-2.5 rounded-[10px] bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.04] dark:border-white/[0.06]"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-sans font-semibold text-[12px] text-[#1D1D1F] dark:text-white">
-                    {log.title}
-                  </span>
-                  <span className="text-[10.5px] text-[#6E6E73] shrink-0">+{log.elapsed_s}s</span>
-                </div>
-                {log.detail && (
-                  <div className="text-[11px] text-[#6E6E73] dark:text-[#A1A1A6] mt-1 break-all">
-                    {log.detail}
-                  </div>
-                )}
-              </div>
-            ))}
-            {isAnalyzing && (
-              <div className="p-2.5 rounded-[10px] bg-[#0071E3]/[0.06] border border-[#0071E3]/20 flex items-center gap-2.5 text-[#0071E3]">
-                <i className="ph-bold ph-spinner animate-spin text-sm"></i>
-                <span className="font-sans text-[12px] font-medium">
-                  {agentBrandName} đang kiểm tra mô hình & tổng hợp báo cáo JSON...
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* ===================================================================== */}
       {/* MAIN WORKSPACE: 3-PANE APPLE STUDIO LAYOUT                            */}
@@ -1074,7 +949,7 @@ export const App: React.FC = () => {
                           : 'text-[#6E6E73] dark:text-[#A1A1A6]'
                       }`}
                     >
-                      Tất cả ({cards.length})
+                      Tất cả ({cardsForPlate.length})
                     </button>
                     <button
                       onClick={() => setLeftPillarFilter('safety')}
@@ -1085,7 +960,7 @@ export const App: React.FC = () => {
                       }`}
                     >
                       <i className="ph-fill ph-shield-warning text-[#FF3B30]"></i>
-                      <span>An toàn ({cards.filter((c) => c.pillar === 'safety').length})</span>
+                      <span>An toàn ({cardsForPlate.filter((c) => c.pillar === 'safety').length})</span>
                     </button>
                     <button
                       onClick={() => setLeftPillarFilter('aesthetics')}
@@ -1096,108 +971,177 @@ export const App: React.FC = () => {
                       }`}
                     >
                       <i className="ph-fill ph-sparkle text-[#0071E3]"></i>
-                      <span>Độ đẹp ({cards.filter((c) => c.pillar === 'aesthetics').length})</span>
+                      <span>Độ đẹp ({cardsForPlate.filter((c) => c.pillar === 'aesthetics').length})</span>
                     </button>
                   </div>
+
+                  {/* Multi-plate filter scope toggle */}
+                  {isMultiPlate && (
+                    <div className="mt-2 flex items-center justify-between gap-1 text-[11px] px-0.5">
+                      <span className="text-[#6E6E73] dark:text-[#8E8E93] text-[10.5px] font-medium flex items-center gap-1">
+                        <i className="ph-bold ph-stack text-xs"></i>
+                        <span>Phạm vi khay:</span>
+                      </span>
+                      <div className="flex items-center gap-1 p-0.5 rounded-[8px] bg-black/[0.04] dark:bg-white/[0.06]">
+                        <button
+                          onClick={() => setLeftPlateFilter('current')}
+                          className={`px-2 py-0.5 rounded-[6px] spring-transition text-[11px] font-medium ${
+                            leftPlateFilter === 'current'
+                              ? 'bg-white dark:bg-[#2C2C2E] text-[#0071E3] shadow-xs'
+                              : 'text-[#6E6E73] dark:text-[#A1A1A6]'
+                          }`}
+                        >
+                          Khay P{activePlateId} ({cards.filter((c) => activePlateObjectIds.includes(c.object_id)).length})
+                        </button>
+                        <button
+                          onClick={() => setLeftPlateFilter('all')}
+                          className={`px-2 py-0.5 rounded-[6px] spring-transition text-[11px] font-medium ${
+                            leftPlateFilter === 'all'
+                              ? 'bg-white dark:bg-[#2C2C2E] text-[#1D1D1F] dark:text-white shadow-xs'
+                              : 'text-[#6E6E73] dark:text-[#A1A1A6]'
+                          }`}
+                        >
+                          Tất cả ({cards.length})
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex-1 overflow-y-auto px-3.5 py-3 space-y-2.5">
-                  {filteredCards.map((card) => {
-                    const isSelected = card.id === selectedCardId;
-                    const { icon, color } = getCardIcon(card.action_type);
-
-                    return (
-                      <div
-                        key={card.id}
-                        onClick={() => {
-                          setSelectedCardId(card.id);
-                          setSelectedObjectId(card.object_id);
-                          setViewMode(card.pillar === 'aesthetics' ? 'surface' : 'support');
-                        }}
-                        className={`p-3.5 rounded-[14px] bg-white dark:bg-[#1C1C1E] cursor-pointer spring-transition ${
-                          isSelected
-                            ? 'border-2 border-[#0071E3] shadow-sm'
-                            : 'border border-black/[0.07] dark:border-white/[0.08] hover:border-black/20 dark:hover:border-white/20'
-                        } ${card.approved ? '' : 'opacity-60'}`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-start gap-2.5">
-                            <span
-                              className={`w-7 h-7 rounded-[9px] ${color} flex items-center justify-center shrink-0 mt-0.5`}
-                            >
-                              <i className={`ph-fill ${icon} text-base`}></i>
-                            </span>
-                            <div>
-                              <div className="text-[13px] font-semibold leading-snug">
-                                {card.title}
-                              </div>
-                              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                                <span
-                                  className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                                    card.pillar === 'safety'
-                                      ? 'bg-[#FF3B30]/10 text-[#FF3B30]'
-                                      : 'bg-[#0071E3]/10 text-[#0071E3]'
-                                  }`}
-                                >
-                                  {card.pillar === 'safety' ? 'An toàn' : 'Độ đẹp'}
-                                </span>
-                                <span className="text-[11px] font-mono text-[#6E6E73] dark:text-[#8E8E93]">
-                                  {card.object_tag}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <label
-                            className="flex items-center cursor-pointer shrink-0"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={card.approved}
-                              onChange={(e) => toggleCardApproval(card.id, e.target.checked)}
-                              className="sr-only peer"
-                            />
-                            <div className="w-9 h-5 bg-black/15 dark:bg-white/20 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all relative peer-checked:bg-[#0071E3]"></div>
-                          </label>
-                        </div>
-
-                        <p className="text-[12px] text-[#6E6E73] dark:text-[#A1A1A6] leading-relaxed mt-2">
-                          {card.desc}
-                        </p>
-
-                        {card.action_type === 'FLATTEN_BOTTOM' ? (
-                          <div
-                            className="mt-2.5 pt-2.5 border-t border-black/[0.06] dark:border-white/[0.08]"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <div className="flex items-center justify-between text-[11.5px] mb-1">
-                              <span className="font-medium text-[#1D1D1F] dark:text-white flex items-center gap-1">
-                                <i className="ph-bold ph-scissors text-[#0071E3]"></i>
-                                <span>Cắt phẳng đáy (Flatten Z)</span>
-                              </span>
-                              <span className="font-mono font-semibold text-[#0071E3]">
-                                {flattenMm.toFixed(2)} mm
-                              </span>
-                            </div>
-                            <input
-                              type="range"
-                              min="0"
-                              max="1.4"
-                              step="0.1"
-                              value={flattenMm}
-                              onChange={(e) => handleFlattenChange(parseFloat(e.target.value))}
-                              className="w-full"
-                            />
-                          </div>
-                        ) : (
-                          <div className="mt-2 px-2.5 py-1 rounded-[8px] bg-black/[0.03] dark:bg-white/[0.05] text-[11px] font-mono text-[#1D1D1F] dark:text-[#E5E5EA]">
-                            {card.pill_text}
-                          </div>
-                        )}
+                  {filteredCards.length === 0 ? (
+                    <div className="py-12 px-4 text-center">
+                      <div className="w-10 h-10 mx-auto rounded-full bg-[#28CD41]/10 text-[#28CD41] flex items-center justify-center mb-2.5">
+                        <i className="ph-fill ph-check-circle text-xl"></i>
                       </div>
-                    );
-                  })}
+                      <div className="text-[13px] font-semibold text-[#1D1D1F] dark:text-white">
+                        {isMultiPlate && leftPlateFilter === 'current'
+                          ? `Khay in Plate ${activePlateId} an toàn!`
+                          : 'Không có đề xuất nào'}
+                      </div>
+                      <p className="text-[11.5px] text-[#6E6E73] dark:text-[#8E8E93] mt-1 max-w-[240px] mx-auto">
+                        {isMultiPlate && leftPlateFilter === 'current'
+                          ? 'Không phát hiện nguy cơ lỗi in hoặc khuyết tật bề mặt trên khay này.'
+                          : 'Mọi thông số đều đạt tiêu chuẩn an toàn.'}
+                      </p>
+                      {isMultiPlate && leftPlateFilter === 'current' && cards.length > 0 && (
+                        <button
+                          onClick={() => setLeftPlateFilter('all')}
+                          className="mt-3 px-3 py-1 rounded-full text-[11.5px] font-medium bg-[#0071E3]/10 text-[#0071E3] hover:bg-[#0071E3]/20 spring-transition"
+                        >
+                          Xem tất cả khay ({cards.length} đề xuất)
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    filteredCards.map((card) => {
+                      const isSelected = card.id === selectedCardId;
+                      const { icon, color } = getCardIcon(card.action_type);
+                      const cardOwnerPlate = telemetry?.plates.find((p) =>
+                        p.object_ids.includes(card.object_id)
+                      );
+
+                      return (
+                        <div
+                          key={card.id}
+                          onClick={() => {
+                            setSelectedCardId(card.id);
+                            setSelectedObjectId(card.object_id);
+                            if (cardOwnerPlate) {
+                              setActivePlateId(cardOwnerPlate.id);
+                            }
+                            setViewMode(card.pillar === 'aesthetics' ? 'surface' : 'support');
+                          }}
+                          className={`p-3.5 rounded-[14px] bg-white dark:bg-[#1C1C1E] cursor-pointer spring-transition ${
+                            isSelected
+                              ? 'border-2 border-[#0071E3] shadow-sm'
+                              : 'border border-black/[0.07] dark:border-white/[0.08] hover:border-black/20 dark:hover:border-white/20'
+                          } ${card.approved ? '' : 'opacity-60'}`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-start gap-2.5">
+                              <span
+                                className={`w-7 h-7 rounded-[9px] ${color} flex items-center justify-center shrink-0 mt-0.5`}
+                              >
+                                <i className={`ph-fill ${icon} text-base`}></i>
+                              </span>
+                              <div>
+                                <div className="text-[13px] font-semibold leading-snug">
+                                  {card.title}
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                  <span
+                                    className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                                      card.pillar === 'safety'
+                                        ? 'bg-[#FF3B30]/10 text-[#FF3B30]'
+                                        : 'bg-[#0071E3]/10 text-[#0071E3]'
+                                    }`}
+                                  >
+                                    {card.pillar === 'safety' ? 'An toàn' : 'Độ đẹp'}
+                                  </span>
+                                  {isMultiPlate && cardOwnerPlate && (
+                                    <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-black/[0.05] dark:bg-white/[0.08] text-[#1D1D1F] dark:text-[#E5E5EA]">
+                                      Plate {cardOwnerPlate.id}
+                                    </span>
+                                  )}
+                                  <span className="text-[11px] font-mono text-[#6E6E73] dark:text-[#8E8E93]">
+                                    {card.object_tag}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <label
+                              className="flex items-center cursor-pointer shrink-0"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={card.approved}
+                                onChange={(e) => toggleCardApproval(card.id, e.target.checked)}
+                                className="sr-only peer"
+                              />
+                              <div className="w-9 h-5 bg-black/15 dark:bg-white/20 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all relative peer-checked:bg-[#0071E3]"></div>
+                            </label>
+                          </div>
+
+                          <p className="text-[12px] text-[#6E6E73] dark:text-[#A1A1A6] leading-relaxed mt-2">
+                            {card.desc}
+                          </p>
+
+                          {card.action_type === 'FLATTEN_BOTTOM' ? (
+                            <div
+                              className="mt-2.5 pt-2.5 border-t border-black/[0.06] dark:border-white/[0.08]"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="flex items-center justify-between text-[11.5px] mb-1">
+                                <span className="font-medium text-[#1D1D1F] dark:text-white flex items-center gap-1">
+                                  <i className="ph-bold ph-scissors text-[#0071E3]"></i>
+                                  <span>Cắt phẳng đáy (Flatten Z)</span>
+                                </span>
+                                <span className="font-mono font-semibold text-[#0071E3]">
+                                  {flattenMm.toFixed(2)} mm
+                                </span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="1.4"
+                                step="0.1"
+                                value={flattenMm}
+                                onChange={(e) => handleFlattenChange(parseFloat(e.target.value))}
+                                className="w-full"
+                              />
+                            </div>
+                          ) : (
+                            <div className="mt-2 px-2.5 py-1 rounded-[8px] bg-black/[0.03] dark:bg-white/[0.05] text-[11px] font-mono text-[#1D1D1F] dark:text-[#E5E5EA]">
+                              {card.pill_text}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </>
             )}
@@ -1256,7 +1200,7 @@ export const App: React.FC = () => {
               <div className="apple-pill-glass p-1 rounded-full flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => setViewMode('support')}
-                  data-tip="Support & Vạt đáy: Xem vùng cần chống đỡ & diện tích bám bàn Z=0"
+                  data-tip="Chế độ An toàn: Xem vùng cần chống đỡ & diện tích bám bàn Z=0"
                   data-tip-pos="bottom-right"
                   className={`w-8 h-8 rounded-full text-sm font-medium spring-transition flex items-center justify-center ${
                     viewMode === 'support'
@@ -1268,7 +1212,7 @@ export const App: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setViewMode('surface')}
-                  data-tip="Bề mặt & Đường ghép: Xem mặt phẳng Ironing & vòm cầu Adaptive Z"
+                  data-tip="Chế độ Làm đẹp: Xem mặt phẳng Ironing & vòm cầu Adaptive Z"
                   data-tip-pos="bottom-right"
                   className={`w-8 h-8 rounded-full text-sm font-medium spring-transition flex items-center justify-center ${
                     viewMode === 'surface'
@@ -1277,18 +1221,6 @@ export const App: React.FC = () => {
                   }`}
                 >
                   <i className="ph-fill ph-sparkle text-base"></i>
-                </button>
-                <button
-                  onClick={() => setViewMode('xray')}
-                  data-tip="Soi từ dưới đáy (Z=0): Xoay camera nhìn xuyên từ mặt bàn PEI lên đáy"
-                  data-tip-pos="bottom-right"
-                  className={`w-8 h-8 rounded-full text-sm font-medium spring-transition flex items-center justify-center ${
-                    viewMode === 'xray'
-                      ? 'bg-[#0071E3] text-white shadow-sm'
-                      : 'text-[#6E6E73] dark:text-[#A1A1A6] hover:text-[#1D1D1F] dark:hover:text-white'
-                  }`}
-                >
-                  <i className="ph-bold ph-layers text-base"></i>
                 </button>
               </div>
 
@@ -1306,6 +1238,42 @@ export const App: React.FC = () => {
             </div>
           </div>
 
+          {/* Compact 3D Color Legend (Moved to Top-Left under Plate bar to prevent tooltip collision) */}
+          <div className="absolute top-14 left-3.5 z-10 apple-glass px-2.5 py-1 rounded-full flex items-center gap-2 text-[10.5px] font-medium text-[#6E6E73] dark:text-[#A1A1A6] shadow-xs">
+            <span
+              data-tip="Đáy chạm bàn (Z=0): Diện tích tiếp xúc trực tiếp với mặt bàn PEI"
+              data-tip-pos="bottom"
+              className="flex items-center gap-1 cursor-help"
+            >
+              <span className="w-2 h-2 rounded-full bg-[#28CD41]"></span>
+              <span>Z=0</span>
+            </span>
+            <span
+              data-tip="Vùng Support: Vùng hàm/gầm dốc cần vẽ trụ đỡ chống sập"
+              data-tip-pos="bottom"
+              className="flex items-center gap-1 cursor-help"
+            >
+              <span className="w-2 h-2 rounded-full bg-[#0071E3]"></span>
+              <span>Support</span>
+            </span>
+            <span
+              data-tip="Mặt phẳng Ironing: Đỉnh phẳng ngang thích hợp là mịn đầu phun"
+              data-tip-pos="bottom"
+              className="flex items-center gap-1 cursor-help"
+            >
+              <span className="w-2 h-2 rounded-full bg-[#30B0C7]"></span>
+              <span>Ironing</span>
+            </span>
+            <span
+              data-tip="Vòm cầu Adaptive Z: Đỉnh cong cần giảm chiều cao lớp in chống bậc thang"
+              data-tip-pos="bottom"
+              className="flex items-center gap-1 cursor-help"
+            >
+              <span className="w-2 h-2 rounded-full bg-[#5856D6]"></span>
+              <span>Vòm Z</span>
+            </span>
+          </div>
+
           <Viewport3D
             objects={telemetry?.objects || []}
             activePlateObjectIds={activePlateObjectIds}
@@ -1313,16 +1281,99 @@ export const App: React.FC = () => {
             selectedCard={selectedCard}
             viewMode={viewMode}
             flattenMm={flattenMm}
-            onSelectObject={(oid) => setSelectedObjectId(oid)}
+            onSelectObject={(oid) => {
+              setSelectedObjectId(oid);
+              const ownerPlate = telemetry?.plates.find((p) => p.object_ids.includes(oid));
+              if (ownerPlate) setActivePlateId(ownerPlate.id);
+            }}
+            showLeftPanel={showLeftPanel}
+            showRightPanel={showRightPanel}
           />
 
-          {/* Bottom Floating Single-Row Compact Object Inspector & Tooltip Color Legend */}
-          <div className="absolute bottom-4 left-3.5 right-3.5 apple-glass px-3.5 py-2 rounded-full flex items-center justify-between gap-3 z-10 max-w-[760px] mx-auto">
+          {/* Expandable Agent Live Reasoning Console Drawer (Bottom-Anchored) */}
+          {showAgentDrawer && (
+            <div className="absolute bottom-16 left-3.5 right-3.5 max-w-[760px] mx-auto apple-glass rounded-[20px] p-4 z-20 shadow-2xl border border-white/60 dark:border-white/15">
+              <div className="flex items-center justify-between pb-2.5 border-b border-black/[0.06] dark:border-white/[0.08]">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-[7px] bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F] flex items-center justify-center">
+                    <i className="ph-bold ph-terminal-window text-xs"></i>
+                  </div>
+                  <div>
+                    <div className="text-[12.5px] font-semibold flex items-center gap-2">
+                      <span>Tiến trình suy luận & hành động ({agentBrandName})</span>
+                      {isAnalyzing && (
+                        <span className="text-[9.5px] font-mono px-2 py-0.5 rounded-full bg-[#FF9F0A]/15 text-[#FF9F0A]">
+                          Đang thực thi...
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10.5px] text-[#6E6E73] dark:text-[#A1A1A6] font-mono">
+                      Toàn quyền gọi Bash, Python, đọc XML/JSON & đối chiếu hình học 3D
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {sessionId && !isAnalyzing && (
+                    <button
+                      onClick={triggerAiAnalysis}
+                      className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#0071E3] text-white hover:bg-[#0077ED]"
+                    >
+                      Chạy lại {agentBrandName}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowAgentDrawer(false)}
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-[#6E6E73] hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
+                  >
+                    <i className="ph-bold ph-x text-xs"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-2.5 max-h-56 overflow-y-auto space-y-1.5 pr-1 font-mono text-[11px]">
+                {agentLogs.length === 0 ? (
+                  <div className="py-6 text-center text-[#6E6E73] dark:text-[#A1A1A6] font-sans text-xs">
+                    Chưa có nhật ký nào. Hãy chọn file và bấm <strong>Bắt đầu phân tích AI Agent</strong>.
+                  </div>
+                ) : (
+                  agentLogs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="p-2 rounded-[8px] bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.04] dark:border-white/[0.06]"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-sans font-semibold text-[11.5px] text-[#1D1D1F] dark:text-white">
+                          {log.title}
+                        </span>
+                        <span className="text-[10px] text-[#6E6E73] shrink-0">+{log.elapsed_s}s</span>
+                      </div>
+                      {log.detail && (
+                        <div className="text-[10.5px] text-[#6E6E73] dark:text-[#A1A1A6] mt-0.5 break-all">
+                          {log.detail}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+                {isAnalyzing && (
+                  <div className="p-2 rounded-[8px] bg-[#0071E3]/[0.06] border border-[#0071E3]/20 flex items-center gap-2 text-[#0071E3]">
+                    <i className="ph-bold ph-spinner animate-spin text-xs"></i>
+                    <span className="font-sans text-[11.5px] font-medium">
+                      {agentBrandName} đang kiểm tra mô hình & tổng hợp tham số...
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Bottom Floating Console: Object Info on Left + Live AI Reasoning Stream on Right */}
+          <div className="absolute bottom-4 left-3.5 right-3.5 apple-glass px-3 py-1.5 rounded-full flex items-center justify-between gap-2.5 z-10 max-w-[760px] mx-auto shadow-lg">
             <div className="flex items-center gap-2 min-w-0">
               <span className="w-6 h-6 rounded-full bg-[#0071E3]/12 text-[#0071E3] flex items-center justify-center shrink-0">
                 <i className="ph-fill ph-cube text-sm"></i>
               </span>
-              <span className="text-[12px] font-semibold text-[#1D1D1F] dark:text-white truncate max-w-[140px] xl:max-w-[200px]">
+              <span className="text-[12px] font-semibold text-[#1D1D1F] dark:text-white truncate max-w-[130px] sm:max-w-[180px]">
                 {activeObject ? activeObject.name : 'Khay Bambu A1 (256×256)'}
               </span>
               {activeObject && (
@@ -1334,7 +1385,7 @@ export const App: React.FC = () => {
                   )} mm · Đáy L1: ${Number(activeObject.footprint_l1_mm[0]).toFixed(1)}×${Number(
                     activeObject.footprint_l1_mm[1]
                   ).toFixed(1)} mm`}
-                  className="text-[10.5px] font-mono px-2 py-0.5 rounded-full bg-black/[0.05] dark:bg-white/[0.08] text-[#6E6E73] dark:text-[#A1A1A6] shrink-0 whitespace-nowrap cursor-help"
+                  className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-black/[0.05] dark:bg-white/[0.08] text-[#6E6E73] dark:text-[#A1A1A6] shrink-0 whitespace-nowrap cursor-help"
                 >
                   {Number(activeObject.size_mm[0]).toFixed(1)}×
                   {Number(activeObject.size_mm[1]).toFixed(1)}×
@@ -1343,38 +1394,41 @@ export const App: React.FC = () => {
               )}
             </div>
 
-            {/* Compact Color Legend Chips with Hover Tooltips */}
-            <div className="flex items-center gap-2.5 text-[11px] font-medium text-[#6E6E73] dark:text-[#A1A1A6] shrink-0 whitespace-nowrap">
+            {/* AI Live Reasoning Status Bar & Log Drawer Toggle (Replaces old Legend) */}
+            <button
+              onClick={() => setShowAgentDrawer(!showAgentDrawer)}
+              data-tip={`Nhật ký suy luận ${agentBrandName} (${agentLogs.length} bước) — Click để ${
+                showAgentDrawer ? 'thu gọn' : 'mở rộng'
+              }`}
+              data-tip-pos="top-right"
+              className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] active:scale-[0.98] spring-transition text-left min-w-0 cursor-pointer"
+            >
               <span
-                data-tip="Đáy chạm bàn (Z=0): Diện tích tiếp xúc trực tiếp với mặt bàn PEI"
-                className="flex items-center gap-1 cursor-help"
-              >
-                <span className="w-2.5 h-2.5 rounded-full bg-[#28CD41]"></span>
-                <span>Z=0</span>
+                className={`w-2 h-2 rounded-full shrink-0 ${
+                  isAnalyzing || isLoadingFile
+                    ? 'bg-[#FF9F0A] animate-ping'
+                    : audit
+                    ? 'bg-[#28CD41]'
+                    : 'bg-[#0071E3]'
+                }`}
+              ></span>
+              <span className="text-[11px] font-medium text-[#1D1D1F] dark:text-white truncate max-w-[140px] sm:max-w-[220px]">
+                {agentLogs.length > 0
+                  ? agentLogs[agentLogs.length - 1].title
+                  : isAnalyzing
+                  ? `${agentBrandName} đang suy luận...`
+                  : `Nhật ký ${agentBrandName}`}
               </span>
-              <span
-                data-tip="Vùng Support: Vùng hàm/gầm dốc cần vẽ trụ đỡ chống sập"
-                className="flex items-center gap-1 cursor-help"
-              >
-                <span className="w-2.5 h-2.5 rounded-full bg-[#0071E3]"></span>
-                <span>Support</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-[#0071E3]/15 text-[#0071E3] font-semibold flex items-center gap-1 shrink-0">
+                <i className="ph-bold ph-terminal-window text-[10px]"></i>
+                <span>{agentLogs.length}</span>
               </span>
-              <span
-                data-tip="Mặt phẳng Ironing: Đỉnh phẳng ngang thích hợp là mịn đầu phun"
-                className="flex items-center gap-1 cursor-help"
-              >
-                <span className="w-2.5 h-2.5 rounded-full bg-[#30B0C7]"></span>
-                <span>Ironing</span>
-              </span>
-              <span
-                data-tip="Vòm cầu Adaptive Z: Đỉnh cong cần giảm chiều cao lớp in chống bậc thang"
-                data-tip-pos="top-right"
-                className="flex items-center gap-1 cursor-help"
-              >
-                <span className="w-2.5 h-2.5 rounded-full bg-[#5856D6]"></span>
-                <span>Vòm Z</span>
-              </span>
-            </div>
+              <i
+                className={`ph-bold ${
+                  showAgentDrawer ? 'ph-caret-down' : 'ph-caret-up'
+                } text-[10px] text-[#6E6E73] dark:text-[#A1A1A6] shrink-0`}
+              ></i>
+            </button>
           </div>
         </section>
 
@@ -1514,78 +1568,143 @@ export const App: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="px-5 py-2 bg-black/[0.02] dark:bg-white/[0.02] border-b border-black/[0.05] dark:border-white/[0.06] grid grid-cols-12 text-[11px] font-medium text-[#6E6E73] dark:text-[#8E8E93]">
-                  <div className="col-span-5">Thông số & Phạm vi áp dụng</div>
-                  <div className="col-span-2 text-center">Mặc định</div>
-                  <div className="col-span-2 text-center">Tác giả</div>
-                  <div className="col-span-3 text-right pr-1">Đề xuất (Sửa)</div>
+                <div className="px-4 py-2 bg-black/[0.02] dark:bg-white/[0.02] border-b border-black/[0.05] dark:border-white/[0.06] flex items-center justify-between text-[11px] font-medium text-[#6E6E73] dark:text-[#8E8E93]">
+                  <span>Thông số & Phạm vi áp dụng</span>
+                  <span>Đề xuất (sửa) · Gốc</span>
                 </div>
 
-                <div className="flex-1 overflow-y-auto divide-y divide-black/[0.05] dark:divide-white/[0.06] px-4">
-                  {filteredSettings.map((item) => (
-                    <div
-                      key={`${item.object_id}-${item.key}`}
-                      onClick={() => {
-                        if (item.object_id !== 'global') {
-                          setSelectedObjectId(item.object_id);
-                        }
-                      }}
-                      className={`py-3 px-1 transition-opacity cursor-pointer ${
-                        item.approved ? 'opacity-100' : 'opacity-50'
-                      }`}
-                    >
-                      <div className="grid grid-cols-12 items-center gap-2">
-                        <div className="col-span-5 flex items-start gap-2">
-                          <input
-                            type="checkbox"
-                            checked={item.approved}
-                            onChange={(e) =>
-                              toggleSettingApproval(item.key, item.object_id, e.target.checked)
+                <div className="flex-1 overflow-y-auto px-3.5 py-3 space-y-2.5">
+                  {filteredSettings.length === 0 ? (
+                    <div className="py-12 px-4 text-center text-[#6E6E73] dark:text-[#8E8E93] text-[12px]">
+                      Không có thông số nào thuộc nhóm này.
+                    </div>
+                  ) : (
+                    filteredSettings.map((item) => {
+                      const itemOwnerPlate =
+                        item.object_id !== 'global'
+                          ? telemetry?.plates.find((p) => p.object_ids.includes(item.object_id))
+                          : null;
+                      const isSameOrigin = item.default_val === item.author_val;
+
+                      return (
+                        <div
+                          key={`${item.object_id}-${item.key}`}
+                          onClick={() => {
+                            if (item.object_id !== 'global') {
+                              setSelectedObjectId(item.object_id);
+                              if (itemOwnerPlate) setActivePlateId(itemOwnerPlate.id);
                             }
-                            onClick={(e) => e.stopPropagation()}
-                            className="mt-1 w-4 h-4 rounded text-[#0071E3] focus:ring-0 cursor-pointer accent-[#0071E3]"
-                          />
-                          <div className="min-w-0">
-                            <div className="text-[12.5px] font-semibold leading-tight text-[#1D1D1F] dark:text-white">
-                              {item.label}
+                          }}
+                          className={`p-3 rounded-[12px] spring-transition cursor-pointer ${
+                            item.approved
+                              ? 'bg-white dark:bg-[#1C1C1E] border border-black/[0.06] dark:border-white/[0.08] shadow-xs'
+                              : 'bg-black/[0.02] dark:bg-white/[0.03] border border-transparent opacity-50'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                              <input
+                                type="checkbox"
+                                checked={item.approved}
+                                onChange={(e) =>
+                                  toggleSettingApproval(item.key, item.object_id, e.target.checked)
+                                }
+                                onClick={(e) => e.stopPropagation()}
+                                className="mt-0.5 w-4 h-4 rounded text-[#0071E3] focus:ring-0 cursor-pointer accent-[#0071E3] shrink-0"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="text-[12.5px] font-semibold leading-tight text-[#1D1D1F] dark:text-white">
+                                  {item.label}
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/[0.05] dark:bg-white/[0.08] text-[#1D1D1F] dark:text-[#E5E5EA]">
+                                    {item.scope_tag}
+                                  </span>
+                                  {itemOwnerPlate && isMultiPlate && (
+                                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#0071E3]/10 text-[#0071E3] font-medium">
+                                      Plate {itemOwnerPlate.id}
+                                    </span>
+                                  )}
+                                </div>
+                                {item.meaning && (
+                                  <div className="text-[10.5px] text-[#6E6E73] dark:text-[#8E8E93] mt-1 leading-snug line-clamp-2">
+                                    {item.meaning}
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-black/[0.05] dark:bg-white/[0.08] text-[#1D1D1F] dark:text-[#E5E5EA]">
-                                {item.scope_tag}
-                              </span>
-                              <span className="text-[10.5px] text-[#6E6E73] dark:text-[#8E8E93] truncate">
-                                {item.meaning}
-                              </span>
+
+                            <div
+                              className="flex flex-col items-end shrink-0"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {/* Đề xuất (Proposed Value) on top */}
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-semibold uppercase tracking-wider text-[#0071E3] shrink-0">
+                                  Đề xuất:
+                                </span>
+                                <input
+                                  type="text"
+                                  value={item.proposed_val}
+                                  onChange={(e) =>
+                                    editSettingValue(item.key, item.object_id, e.target.value)
+                                  }
+                                  className="w-24 sm:w-28 text-right font-mono text-[11.5px] font-semibold px-2 py-1 rounded-[7px] bg-[#0071E3]/10 dark:bg-[#0071E3]/20 text-[#0071E3] dark:text-[#4DA3FF] border border-[#0071E3]/30 focus:outline-none focus:border-[#0071E3] focus:ring-1 focus:ring-[#0071E3]"
+                                />
+                              </div>
+
+                              {/* Gốc / Tác giả & Mặc định below */}
+                              <div className="mt-1.5 flex items-center justify-end font-mono text-[11px]">
+                                {isSameOrigin ? (
+                                  <div
+                                    className="flex items-center gap-1 text-[#8E8E93] dark:text-[#636366]"
+                                    title="Giá trị gốc của tác giả (trùng mặc định Bambu Studio)"
+                                  >
+                                    <span className="text-[9.5px] font-sans text-[#6E6E73] dark:text-[#8E8E93]">
+                                      Gốc:
+                                    </span>
+                                    <span className="line-through text-[#FF3B30] decoration-[#FF3B30]/70 font-medium">
+                                      {item.author_val}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1.5 text-[10.5px]">
+                                    <div
+                                      className="flex items-center gap-1 text-[#8E8E93]"
+                                      title="Giá trị tác giả đặt trong 3MF"
+                                    >
+                                      <span className="text-[9px] font-sans text-[#6E6E73]">
+                                        Tác giả:
+                                      </span>
+                                      <span className="line-through text-[#FF3B30] decoration-[#FF3B30]/70">
+                                        {item.author_val}
+                                      </span>
+                                    </div>
+                                    <span className="text-black/20 dark:text-white/20">|</span>
+                                    <div
+                                      className="flex items-center gap-1 text-[#8E8E93]"
+                                      title="Giá trị mặc định Bambu Studio"
+                                    >
+                                      <span className="text-[9px] font-sans text-[#6E6E73]">
+                                        Mặc định:
+                                      </span>
+                                      <span>{item.default_val}</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        <div className="col-span-2 text-center font-mono text-[11px] text-[#6E6E73] dark:text-[#8E8E93]">
-                          {item.default_val}
+                          {item.reason && (
+                            <div className="mt-2 ml-6 pl-2.5 border-l-2 border-[#0071E3]/30 text-[11px] text-[#6E6E73] dark:text-[#A1A1A6] leading-relaxed">
+                              {item.reason}
+                            </div>
+                          )}
                         </div>
-
-                        <div className="col-span-2 text-center font-mono text-[11px] text-[#FF3B30] line-through decoration-[#FF3B30]/60">
-                          {item.author_val}
-                        </div>
-
-                        <div className="col-span-3 flex items-center justify-end">
-                          <input
-                            type="text"
-                            value={item.proposed_val}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) =>
-                              editSettingValue(item.key, item.object_id, e.target.value)
-                            }
-                            className="w-28 text-right font-mono text-[11.5px] font-semibold px-2 py-1 rounded-[8px] bg-[#0071E3]/[0.08] dark:bg-[#0071E3]/20 text-[#0071E3] dark:text-[#4DA3FF] border border-[#0071E3]/25 focus:outline-none focus:border-[#0071E3]"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="mt-1.5 ml-6 pl-2.5 border-l-2 border-[#0071E3]/30 text-[11px] text-[#6E6E73] dark:text-[#A1A1A6] leading-relaxed">
-                        {item.reason}
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    })
+                  )}
                 </div>
               </>
             )}

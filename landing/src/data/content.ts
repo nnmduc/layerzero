@@ -192,12 +192,12 @@ export const PROBLEM_CASES: ProblemCase[] = [
       'Scarf Joint chồng mép nhựa vát nghiêng giúp xóa đường sẹo dọc trên mặt trụ.',
     image: '/images/prob-cylinder-seam.jpg',
     metrics: [
-      { label: 'Kiểu mối nối lớp', before: 'Butt Joint (Lộ sẹo)', after: 'Scarf Joint Contour' },
+      { label: 'Kiểu mối nối lớp', before: 'Butt Joint (Lộ sẹo)', after: 'Scarf Joint External' },
       { label: 'Đường chạy mặt cong', before: 'Đoạn thẳng G1', after: 'Cung tròn G2/G3' },
       { label: 'Bộ sinh tường mỏng', before: 'Classic', after: 'Arachne biến thiên' },
     ],
     slicerKeys: [
-      { key: 'seam_slope_type', value: 'contour' },
+      { key: 'seam_slope_type', value: 'external' },
       { key: 'arc_fitting', value: 'G2/G3 (0.012mm)' },
       { key: 'wall_generator', value: 'arachne' },
     ],

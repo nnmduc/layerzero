@@ -156,6 +156,14 @@ input[type='range']::-webkit-slider-thumb:hover {
   transform: translateY(-4px);
 }
 
+[data-tip][data-tip-pos='bottom-left']::after {
+  bottom: auto;
+  top: calc(100% + 8px);
+  left: 0;
+  right: auto;
+  transform: translateY(-4px);
+}
+
 [data-tip][data-tip-pos='top-right']::after {
   left: auto;
   right: 0;
@@ -169,6 +177,7 @@ input[type='range']::-webkit-slider-thumb:hover {
 }
 
 [data-tip][data-tip-pos='bottom-right']:hover::after,
+[data-tip][data-tip-pos='bottom-left']:hover::after,
 [data-tip][data-tip-pos='top-right']:hover::after {
   transform: translateY(0);
 }

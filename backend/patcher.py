@@ -192,7 +192,7 @@ def build_baseline_audit(
             "desc": (
                 f"Chi tiết '{first_c['name']}' có biên dạng trụ tròn ({c_score}% đối xứng tâm), không có cạnh sắc để giấu đường ghép lớp Z-Seam."
             ),
-            "pill_text": "Scarf Joint Seam (Contour) + Arc Fitting G2/G3",
+            "pill_text": "Scarf Joint Seam (External) + Arc Fitting G2/G3",
             "action_type": "SCARF_SEAM_CYLINDER",
             "param_value": 155.0,
             "approved": True,
@@ -319,7 +319,7 @@ def build_baseline_audit(
             "meaning": "Vuốt mỏng điểm đầu-cuối vòng tường trên mặt trụ tròn",
             "default_val": "none",
             "author_val": c_obj["overrides"].get("seam_slope_type", "none"),
-            "proposed_val": "contour",
+            "proposed_val": "external",
             "reason": f"Thân trụ '{c_obj['name']}' không có góc nhọn để giấu Z-Seam; Scarf Seam vạt chéo giúp xóa mờ đường gờ dọc.",
             "approved": True,
         })
@@ -735,6 +735,14 @@ def apply_3mf_optimizations(
             else:
                 cfg[key] = val
         else:
+            if key == "seam_slope_type":
+                val_str = str(val).lower().strip()
+                if val_str in ("contour", "external"):
+                    val = "external"
+                elif val_str in ("all", "contour_and_hole"):
+                    val = "all"
+                elif val_str in ("none", "no"):
+                    val = "none"
             per_object_patches.setdefault(oid, {})[key] = val
 
     # Populate per-object morphology overrides
@@ -769,7 +777,7 @@ def apply_3mf_optimizations(
             })
         if do_cylinder_scarf and "SMOOTH_CYLINDER_SEAM" in flags:
             per_object_patches.setdefault(oid, {}).update({
-                "seam_slope_type": "contour",
+                "seam_slope_type": "external",
                 "seam_slope_start_height": "10%",
             })
         if do_fuzzy_skin and oid == approved_actions["FUZZY_SKIN"].get("object_id"):
@@ -821,6 +829,14 @@ def apply_3mf_optimizations(
                     patch_dict = per_object_patches[oid]
                     patch_dict.pop("screw_bundle_override", None)
                     for k, v in patch_dict.items():
+                        if k == "seam_slope_type":
+                            v_str = str(v).lower().strip()
+                            if v_str in ("contour", "external"):
+                                v = "external"
+                            elif v_str in ("all", "contour_and_hole"):
+                                v = "all"
+                            elif v_str in ("none", "no"):
+                                v = "none"
                         if k in existing:
                             existing[k].attrib["value"] = str(v)
                         else:
@@ -1009,6 +1025,14 @@ def _export_stl_to_3mf(
         '    <metadata key="extruder" value="1"/>',
     ]
     for k, v in patch_dict.items():
+        if k == "seam_slope_type":
+            v_str = str(v).lower().strip()
+            if v_str in ("contour", "external"):
+                v = "external"
+            elif v_str in ("all", "contour_and_hole"):
+                v = "all"
+            elif v_str in ("none", "no"):
+                v = "none"
         obj_meta_lines.append(f'    <metadata key="{k}" value="{v}"/>')
 
     ms_xml = (

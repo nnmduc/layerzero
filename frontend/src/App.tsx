@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Viewport3D } from './components/Viewport3D';
 import {
   AgentActivityLog,
+  AgentEngineInfo,
+  AgentEnginesResponse,
   AuditReport,
   DiagnosticCard,
   ObjectTelemetry,
@@ -22,7 +24,10 @@ export const App: React.FC = () => {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [telemetry, setTelemetry] = useState<TelemetryData | null>(null);
   const [audit, setAudit] = useState<AuditReport | null>(null);
-  const [auditSource, setAuditSource] = useState<'none' | 'agy' | 'engine'>('none');
+  const [auditSource, setAuditSource] = useState<'none' | 'claude' | 'agy' | 'engine'>('none');
+  const [availableEngines, setAvailableEngines] = useState<AgentEngineInfo[]>([]);
+  const [selectedAgent, setSelectedAgent] = useState<'claude' | 'agy' | 'engine'>('claude');
+  const [hasMultipleClis, setHasMultipleClis] = useState<boolean>(false);
   const [samples, setSamples] = useState<SampleFile[]>([]);
 
   // Live Agent Activity Stream State
@@ -49,7 +54,7 @@ export const App: React.FC = () => {
   const [filamentPreset, setFilamentPreset] = useState<string>('Bambu PLA Lite @BBL A1');
 
   // Dynamic Island & Modals
-  const [islandStatus, setIslandStatus] = useState<string>('Chọn file .3mf để bắt đầu');
+  const [islandStatus, setIslandStatus] = useState<string>('Chọn file .3mf hoặc .stl để bắt đầu');
   const [isLoadingFile, setIsLoadingFile] = useState<boolean>(false);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [showDropzone, setShowDropzone] = useState<boolean>(false);
@@ -59,9 +64,28 @@ export const App: React.FC = () => {
   const requestSeqRef = useRef<number>(0);
   const activeEsRef = useRef<EventSource | null>(null);
 
-  // Load available local samples from ~/Downloads on startup (with retry while Tauri Python sidecar boots)
+  // Load available local samples and detected AI agent CLIs on startup
   useEffect(() => {
     let cancelled = false;
+
+    const loadEngines = async () => {
+      try {
+        const r = await fetch(`${API_BASE}/api/agent-engines`);
+        if (r.ok) {
+          const data: AgentEnginesResponse = await r.json();
+          if (!cancelled && data.engines) {
+            setAvailableEngines(data.engines);
+            setHasMultipleClis(data.has_multiple_clis || false);
+            if (data.default_engine) {
+              setSelectedAgent(data.default_engine);
+            }
+          }
+        }
+      } catch {
+        // ignore
+      }
+    };
+
     const loadSamplesWithRetry = async (attempt = 0) => {
       try {
         const r = await fetch(`${API_BASE}/api/samples`);
@@ -69,7 +93,7 @@ export const App: React.FC = () => {
         const list: SampleFile[] = await r.json();
         if (!cancelled) {
           setSamples(list);
-          setIslandStatus('Chọn file .3mf để bắt đầu');
+          setIslandStatus('Chọn file .3mf hoặc .stl để bắt đầu');
           setShowDropzone(true);
         }
       } catch {
@@ -79,16 +103,25 @@ export const App: React.FC = () => {
           }
           setTimeout(() => loadSamplesWithRetry(attempt + 1), 400);
         } else if (!cancelled) {
-          setIslandStatus('Chọn file .3mf để bắt đầu');
+          setIslandStatus('Chọn file .3mf hoặc .stl để bắt đầu');
           setShowDropzone(true);
         }
       }
     };
+
+    loadEngines();
     loadSamplesWithRetry();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  const agentBrandName =
+    selectedAgent === 'claude'
+      ? 'Claude Code'
+      : selectedAgent === 'agy'
+      ? 'agy AI'
+      : 'Morphology Engine';
 
   const showToastMsg = (title: string, desc: string) => {
     setToast({ title, desc });
@@ -101,8 +134,8 @@ export const App: React.FC = () => {
     document.documentElement.classList.toggle('dark', next);
   };
 
-  // Stage 1: When a .3mf file is loaded, ONLY load 3D Geometry & Python Morphology Telemetry!
-  // Wait for user to click "Run agy AI" (or click the Dynamic Island) before populating AI Audit results.
+  // Stage 1: When a .3mf or .stl file is loaded, ONLY load 3D Geometry & Python Morphology Telemetry!
+  // Wait for user to click "Run AI" (or click the Dynamic Island) before populating AI Audit results.
   const applyLoadedGeometry = (data: {
     session_id: string;
     telemetry: TelemetryData;
@@ -136,12 +169,12 @@ export const App: React.FC = () => {
         id: 'step-0',
         step: 'geometry_ready',
         title: `📐 Đã dựng 3D & đo đạc hình học ${data.telemetry.objects.length} chi tiết (${data.telemetry.plates.length} khay in)`,
-        detail: `Sẵn sàng gửi hồ sơ hình học + đường dẫn file .3mf cho agy CLI phân tích chuyên sâu.`,
+        detail: `Sẵn sàng gửi hồ sơ hình học + đường dẫn file cho ${agentBrandName} phân tích chuyên sâu.`,
         elapsed_s: 0.0,
       },
     ]);
     setIslandStatus(
-      `Đã tải 3D (${data.telemetry.objects.length} chi tiết) · Bấm để chạy agy AI Phân tích`
+      `Đã tải 3D (${data.telemetry.objects.length} chi tiết) · Bấm để chạy ${agentBrandName} Phân tích`
     );
     setShowDropzone(false);
   };
@@ -150,7 +183,7 @@ export const App: React.FC = () => {
     const reqId = ++requestSeqRef.current;
     setIsLoadingFile(true);
     setShowDropzone(false);
-    setIslandStatus('Đang giải nén .3mf & dựng lưới tam giác 3D...');
+    setIslandStatus('Đang đọc mô hình (.3mf / .stl) & dựng lưới tam giác 3D...');
     try {
       const res = await fetch(`${API_BASE}/api/load-local`, {
         method: 'POST',
@@ -161,14 +194,14 @@ export const App: React.FC = () => {
           filament_preset: filamentPreset,
         }),
       });
-      if (!res.ok) throw new Error('Không thể đọc file .3mf');
+      if (!res.ok) throw new Error('Không thể đọc file .3mf / .stl');
       const data = await res.json();
       if (reqId === requestSeqRef.current) {
         applyLoadedGeometry(data);
       }
     } catch (err: any) {
       if (reqId === requestSeqRef.current) {
-        showToastMsg('Lỗi tải file', err.message || 'Không thể mở file .3mf');
+        showToastMsg('Lỗi tải file', err.message || 'Không thể mở file .3mf / .stl');
       }
     } finally {
       if (reqId === requestSeqRef.current) {
@@ -201,7 +234,7 @@ export const App: React.FC = () => {
       }
     } catch (err: any) {
       if (reqId === requestSeqRef.current) {
-        showToastMsg('Lỗi tải file', err.message || 'Vui lòng chọn file .3mf');
+        showToastMsg('Lỗi tải file', err.message || 'Vui lòng chọn file .3mf hoặc .stl');
       }
     } finally {
       if (reqId === requestSeqRef.current) {
@@ -210,8 +243,8 @@ export const App: React.FC = () => {
     }
   };
 
-  // Stage 2: Trigger Unleashed Headless `agy` CLI Stream Analysis
-  const triggerAgyAnalysis = () => {
+  // Stage 2: Trigger Unleashed Headless AI Agent CLI Stream Analysis (Claude Code / agy / engine)
+  const triggerAiAnalysis = () => {
     if (!sessionId || isAnalyzing) return;
     if (activeEsRef.current) {
       activeEsRef.current.close();
@@ -220,11 +253,19 @@ export const App: React.FC = () => {
     setIsAnalyzing(true);
     setShowAgentDrawer(true);
     setAgentLogs([]);
-    setIslandStatus('Đang khởi chạy agy -p --dangerously-skip-permissions...');
+    const startMsg =
+      selectedAgent === 'claude'
+        ? 'Đang khởi chạy claude -p --dangerously-skip-permissions...'
+        : selectedAgent === 'agy'
+        ? 'Đang khởi chạy agy -p --dangerously-skip-permissions...'
+        : 'Đang khởi chạy Morphology Rule Engine (Offline)...';
+    setIslandStatus(startMsg);
 
     const url = `${API_BASE}/api/analyze/${sessionId}?printer_preset=${encodeURIComponent(
       printerPreset
-    )}&filament_preset=${encodeURIComponent(filamentPreset)}`;
+    )}&filament_preset=${encodeURIComponent(filamentPreset)}&agent=${encodeURIComponent(
+      selectedAgent
+    )}`;
     const es = new EventSource(url);
     activeEsRef.current = es;
 
@@ -247,7 +288,13 @@ export const App: React.FC = () => {
         } else if (payload.type === 'complete' && payload.report) {
           const rep: AuditReport = payload.report;
           setAudit(rep);
-          setAuditSource(payload.source === 'agy' ? 'agy' : 'engine');
+          setAuditSource(
+            payload.source === 'claude'
+              ? 'claude'
+              : payload.source === 'agy'
+              ? 'agy'
+              : 'engine'
+          );
           if (rep.diagnostic_cards.length > 0) {
             const firstC = rep.diagnostic_cards[0];
             setSelectedCardId(firstC.id);
@@ -258,11 +305,17 @@ export const App: React.FC = () => {
           }
           const sCnt = rep.diagnostic_cards.filter((c) => c.pillar === 'safety').length;
           const aCnt = rep.diagnostic_cards.filter((c) => c.pillar === 'aesthetics').length;
-          setIslandStatus(`agy AI hoàn tất · ${sCnt} Chống lỗi + ${aCnt} Tối ưu độ đẹp`);
+          const finishedName =
+            payload.source === 'claude'
+              ? 'Claude Code'
+              : payload.source === 'agy'
+              ? 'agy AI'
+              : 'Morphology Engine';
+          setIslandStatus(`${finishedName} hoàn tất · ${sCnt} Chống lỗi + ${aCnt} Tối ưu độ đẹp`);
           setIsAnalyzing(false);
           es.close();
           activeEsRef.current = null;
-          showToastMsg('agy AI Audit hoàn tất', rep.summary);
+          showToastMsg(`${finishedName} Audit hoàn tất`, rep.summary);
         }
       } catch {
         // ignore parse error
@@ -276,14 +329,21 @@ export const App: React.FC = () => {
     };
   };
 
-  // Stage 3: Export optimized .3mf or Open directly in Bambu Studio
-  const handleApplyAndExport = async (openInBambu: boolean) => {
+  const triggerAgyAnalysis = triggerAiAnalysis;
+
+  // Stage 3: Export optimized .3mf / .stl or Open directly in Bambu Studio
+  const handleApplyAndExport = async (
+    openInBambu: boolean,
+    exportFormat: '3mf' | 'stl' = '3mf'
+  ) => {
     if (!sessionId || !audit) {
-      showToastMsg('Chưa có báo cáo tối ưu', 'Hãy bấm "Phân tích & Tối ưu bằng agy AI" trước khi xuất file.');
+      showToastMsg('Chưa có báo cáo tối ưu', `Hãy bấm "Phân tích & Tối ưu bằng ${agentBrandName}" trước khi xuất file.`);
       return;
     }
     setIslandStatus(
-      openInBambu ? 'Đang đóng gói .3mf & mở Bambu Studio...' : 'Đang đóng gói file .3mf tối ưu...'
+      openInBambu
+        ? 'Đang đóng gói .3mf & mở Bambu Studio...'
+        : `Đang đóng gói file .${exportFormat} tối ưu...`
     );
     try {
       const res = await fetch(`${API_BASE}/api/apply`, {
@@ -295,11 +355,12 @@ export const App: React.FC = () => {
           settings_diff: audit.settings_diff,
           printer_preset: printerPreset,
           filament_preset: filamentPreset,
+          export_format: exportFormat,
           open_in_bambu: openInBambu,
           reveal_in_finder: !openInBambu && IS_DESKTOP,
         }),
       });
-      if (!res.ok) throw new Error('Lỗi khi xuất file .3mf');
+      if (!res.ok) throw new Error(`Lỗi khi xuất file .${exportFormat}`);
       const data = await res.json();
       setIslandStatus(`Đã xuất: ${data.output_filename}`);
       showToastMsg(
@@ -307,7 +368,7 @@ export const App: React.FC = () => {
           ? 'Đã mở trong Bambu Studio'
           : IS_DESKTOP
           ? 'Đã lưu vào ~/Downloads & mở thư mục chứa file'
-          : 'Đã xuất file .3mf tối ưu',
+          : `Đã xuất file .${exportFormat} tối ưu`,
         data.output_filename
       );
       if (!openInBambu && !IS_DESKTOP && data.download_url) {
@@ -446,44 +507,50 @@ export const App: React.FC = () => {
             <div className="w-8 h-8 rounded-[10px] bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F] flex items-center justify-center shadow-sm shrink-0">
               <i className="ph-bold ph-cube-focus text-lg"></i>
             </div>
-            <div className="flex items-center gap-1.5 whitespace-nowrap">
-              <span className="font-semibold tracking-tight text-[14.5px]">LayerZero</span>
-              <span className="text-[10.5px] font-mono px-1.5 py-0.5 rounded-full bg-black/[0.05] dark:bg-white/[0.08] text-[#6E6E73] dark:text-[#A1A1A6]">
+            <div className="hidden sm:flex items-center gap-1.5 whitespace-nowrap">
+              <span className="font-semibold tracking-tight text-[14px]">LayerZero</span>
+              <span className="hidden md:inline text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-black/[0.05] dark:bg-white/[0.08] text-[#6E6E73] dark:text-[#A1A1A6]">
                 v2.0
               </span>
             </div>
           </div>
 
-          <div className="h-4 w-[1px] bg-black/[0.08] dark:bg-white/[0.1] shrink-0"></div>
+          <div className="hidden sm:block h-4 w-[1px] bg-black/[0.08] dark:bg-white/[0.1] shrink-0"></div>
 
-          {/* Active 3MF File Selector */}
+          {/* Active 3MF / STL File Selector */}
           <button
             onClick={() => setShowDropzone(true)}
-            data-tip="Mở hoặc đổi file mô hình .3mf khác"
+            data-tip="Mở hoặc đổi file mô hình .3mf / .stl khác"
             data-tip-pos="bottom"
             className="flex items-center gap-2 px-2.5 py-1.5 rounded-[10px] bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] active:scale-[0.98] spring-transition text-left min-w-0"
           >
             <i className="ph-fill ph-file-archive text-[#0071E3] text-base shrink-0"></i>
             <div className="min-w-0">
-              <div className="text-[12.5px] font-medium leading-none flex items-center gap-1.5">
-                <span className="max-w-[145px] xl:max-w-[180px] truncate">
-                  {telemetry ? telemetry.filename : 'Chọn file .3mf...'}
+              <div className="text-[12px] sm:text-[12.5px] font-medium leading-none flex items-center gap-1.5">
+                <span className="max-w-[100px] sm:max-w-[145px] xl:max-w-[180px] truncate">
+                  {telemetry ? telemetry.filename : 'Chọn file .3mf / .stl...'}
                 </span>
+                {telemetry && (
+                  <span className="text-[9px] sm:text-[9.5px] font-mono font-semibold uppercase px-1 py-0.2 rounded bg-[#0071E3]/12 text-[#0071E3] shrink-0">
+                    {telemetry.source_format ||
+                      (telemetry.filename.toLowerCase().endsWith('.stl') ? 'stl' : '3mf')}
+                  </span>
+                )}
                 <i className="ph-bold ph-folder-open text-[#0071E3] text-xs shrink-0"></i>
               </div>
-              <div className="text-[10.5px] text-[#6E6E73] dark:text-[#8E8E93] font-mono mt-0.5 whitespace-nowrap">
+              <div className="hidden sm:block text-[10px] text-[#6E6E73] dark:text-[#8E8E93] font-mono mt-0.5 whitespace-nowrap">
                 {telemetry
                   ? `${telemetry.plates.length}P · ${telemetry.objects.length}Obj · ${telemetry.file_size_mb}MB`
-                  : 'Bambu & Prusa .3mf'}
+                  : 'Hỗ trợ .3mf & .stl'}
               </div>
             </div>
           </button>
 
-          {/* Target Printer & Filament Selector */}
+          {/* Target Printer & Filament Selector (Desktop Only) */}
           <div
             data-tip="Cấu hình máy in & vật liệu nhựa mục tiêu"
             data-tip-pos="bottom"
-            className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] border border-black/[0.06] dark:border-white/[0.08] bg-white/50 dark:bg-white/[0.02] text-[11.5px] shrink-0 whitespace-nowrap"
+            className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] border border-black/[0.06] dark:border-white/[0.08] bg-white/50 dark:bg-white/[0.02] text-[11.5px] shrink-0 whitespace-nowrap"
           >
             <i className="ph-bold ph-printer text-[#0071E3]"></i>
             <select
@@ -507,21 +574,84 @@ export const App: React.FC = () => {
               <option value="Bambu PETG HF @BBL A1">PETG HF</option>
             </select>
           </div>
+
+          {/* AI Engine CLI Selector (Wide Screens Only; on smaller screens select in Left Action Card) */}
+          <div
+            data-tip={
+              hasMultipleClis
+                ? 'Đã phát hiện nhiều CLI (Claude Code & agy) · Chọn CLI AI bạn muốn dùng'
+                : 'Công cụ AI thực thi phân tích & tối ưu Slicer'
+            }
+            data-tip-pos="bottom"
+            className={`hidden 2xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] border text-[11.5px] shrink-0 whitespace-nowrap spring-transition ${
+              hasMultipleClis
+                ? 'border-[#0071E3]/35 bg-[#0071E3]/[0.06] dark:bg-[#0071E3]/15'
+                : 'border-black/[0.06] dark:border-white/[0.08] bg-white/50 dark:bg-white/[0.02]'
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full shrink-0 ${
+                selectedAgent === 'claude'
+                  ? 'bg-[#D97706]'
+                  : selectedAgent === 'agy'
+                  ? 'bg-[#0071E3]'
+                  : 'bg-[#8E8E93]'
+              }`}
+            ></span>
+            <i
+              className={`ph-bold ${
+                selectedAgent === 'claude'
+                  ? 'ph-sparkle text-[#D97706]'
+                  : selectedAgent === 'agy'
+                  ? 'ph-robot text-[#0071E3]'
+                  : 'ph-gear text-[#8E8E93]'
+              }`}
+            ></i>
+            <select
+              value={selectedAgent}
+              onChange={(e) => setSelectedAgent(e.target.value as any)}
+              className="bg-transparent font-medium text-[#1D1D1F] dark:text-white focus:outline-none cursor-pointer"
+            >
+              {availableEngines.length > 0 ? (
+                availableEngines.map((eng) => (
+                  <option
+                    key={eng.id}
+                    value={eng.id}
+                    disabled={!eng.available && eng.id !== 'engine'}
+                  >
+                    {eng.name} {eng.version ? `(${eng.version.split(' ')[0]})` : ''}
+                    {!eng.available ? ' — Chưa cài' : ''}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value="claude">Claude Code CLI</option>
+                  <option value="agy">Antigravity agy CLI</option>
+                  <option value="engine">Morphology Rule Engine</option>
+                </>
+              )}
+            </select>
+            {hasMultipleClis && (
+              <span className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded-full bg-[#0071E3]/20 text-[#0071E3] font-mono">
+                Multi-CLI
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Center: Dynamic Island Headless `agy` Status & Log Drawer Toggle */}
-        <div className="flex items-center min-w-0 shrink">
+        {/* Center: Dynamic Island Headless AI Agent Status & Log Drawer Toggle */}
+        <div className="flex items-center min-w-0 max-w-[160px] sm:max-w-[220px] md:max-w-[300px] shrink">
           <button
             onClick={() => {
               if (!audit && !isAnalyzing && sessionId) {
-                triggerAgyAnalysis();
+                triggerAiAnalysis();
               } else {
                 setShowAgentDrawer(!showAgentDrawer);
               }
             }}
-            data-tip={`Nhật ký suy luận agy AI (${agentLogs.length} bước) — Bấm để đóng/mở`}
+            data-tip={`Nhật ký suy luận ${agentBrandName} (${agentLogs.length} bước) — Bấm để đóng/mở`}
             data-tip-pos="bottom"
-            className="apple-pill-glass px-3 py-1.5 rounded-full flex items-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.99] spring-transition min-w-0"
+            className="apple-pill-glass px-2.5 sm:px-3 py-1.5 rounded-full flex items-center gap-1.5 sm:gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.99] spring-transition min-w-0 max-w-full"
           >
             <span
               className={`w-2 h-2 rounded-full shrink-0 ${
@@ -532,10 +662,10 @@ export const App: React.FC = () => {
                   : 'bg-[#0071E3]'
               }`}
             ></span>
-            <span className="text-[11.5px] font-medium tracking-tight max-w-[190px] xl:max-w-[270px] truncate">
+            <span className="text-[11px] sm:text-[11.5px] font-medium tracking-tight truncate">
               {islandStatus}
             </span>
-            <span className="text-[11px] font-mono px-1.5 py-0.5 rounded-full bg-[#0071E3]/10 text-[#0071E3] font-semibold flex items-center gap-1 shrink-0 whitespace-nowrap">
+            <span className="text-[10px] sm:text-[11px] font-mono px-1.5 py-0.5 rounded-full bg-[#0071E3]/10 text-[#0071E3] font-semibold flex items-center gap-1 shrink-0 whitespace-nowrap">
               <i className="ph-bold ph-terminal-window"></i>
               <span>{agentLogs.length}</span>
             </span>
@@ -543,7 +673,7 @@ export const App: React.FC = () => {
         </div>
 
         {/* Right: Compact Icon Actions with Tooltips */}
-        <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 whitespace-nowrap">
           <button
             onClick={toggleTheme}
             data-tip={darkMode ? 'Chuyển sang giao diện Sáng' : 'Chuyển sang giao diện Tối'}
@@ -554,32 +684,49 @@ export const App: React.FC = () => {
           </button>
 
           <button
-            onClick={() => handleApplyAndExport(false)}
+            onClick={() => handleApplyAndExport(false, 'stl')}
             disabled={!audit}
-            data-tip="Xuất file .3mf tối ưu vào ~/Downloads"
+            data-tip="Xuất lưới .STL đã vạt đáy & tối ưu hình học vào ~/Downloads"
             data-tip-pos="bottom-right"
-            className={`w-8 h-8 rounded-full text-[13px] font-medium spring-transition flex items-center justify-center shrink-0 ${
+            className={`hidden lg:flex px-2.5 h-8 rounded-full text-[11px] font-mono font-semibold spring-transition items-center gap-1 shrink-0 ${
               audit
                 ? 'text-[#1D1D1F] dark:text-white bg-black/[0.05] dark:bg-white/[0.08] hover:bg-black/[0.1] dark:hover:bg-white/[0.15] active:scale-[0.96]'
                 : 'opacity-40 cursor-not-allowed bg-black/[0.04] dark:bg-white/[0.05]'
             }`}
           >
-            <i className="ph-bold ph-download-simple text-base"></i>
+            <i className="ph-bold ph-cube text-sm"></i>
+            <span>.STL</span>
           </button>
 
           <button
-            onClick={() => handleApplyAndExport(true)}
+            onClick={() => handleApplyAndExport(false, '3mf')}
+            disabled={!audit}
+            data-tip="Xuất file dự án .3MF tối ưu (kèm Support & Slicer Config) vào ~/Downloads"
+            data-tip-pos="bottom-right"
+            className={`hidden sm:flex px-2.5 h-8 rounded-full text-[11px] font-mono font-semibold spring-transition items-center gap-1 shrink-0 ${
+              audit
+                ? 'text-[#1D1D1F] dark:text-white bg-black/[0.05] dark:bg-white/[0.08] hover:bg-black/[0.1] dark:hover:bg-white/[0.15] active:scale-[0.96]'
+                : 'opacity-40 cursor-not-allowed bg-black/[0.04] dark:bg-white/[0.05]'
+            }`}
+          >
+            <i className="ph-bold ph-download-simple text-sm"></i>
+            <span>.3MF</span>
+          </button>
+
+          <button
+            onClick={() => handleApplyAndExport(true, '3mf')}
             disabled={!audit}
             data-tip="Áp dụng tối ưu & Mở trực tiếp trong Bambu Studio"
             data-tip-pos="bottom-right"
-            className={`px-3 py-1.5 rounded-full text-[12px] font-medium text-white shadow-sm spring-transition flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+            className={`px-2.5 sm:px-3 py-1.5 rounded-full text-[11.5px] sm:text-[12px] font-medium text-white shadow-sm spring-transition flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
               audit
                 ? 'bg-[#0071E3] hover:bg-[#0077ED] active:scale-[0.98]'
                 : 'bg-[#0071E3]/40 cursor-not-allowed'
             }`}
           >
             <i className="ph-bold ph-arrow-square-out text-sm"></i>
-            <span>Bambu Studio</span>
+            <span className="hidden sm:inline">Bambu Studio</span>
+            <span className="sm:hidden">Bambu</span>
           </button>
 
           <button
@@ -609,7 +756,7 @@ export const App: React.FC = () => {
               </div>
               <div>
                 <div className="text-[13px] font-semibold flex items-center gap-2">
-                  <span>Tiến trình Suy luận & Hành động của agy AI (Unleashed Mode)</span>
+                  <span>Tiến trình Suy luận & Hành động của {agentBrandName} (Unleashed Mode)</span>
                   {isAnalyzing && (
                     <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#FF9F0A]/15 text-[#FF9F0A]">
                       Đang thực thi...
@@ -624,10 +771,10 @@ export const App: React.FC = () => {
             <div className="flex items-center gap-2">
               {sessionId && !isAnalyzing && (
                 <button
-                  onClick={triggerAgyAnalysis}
+                  onClick={triggerAiAnalysis}
                   className="px-3 py-1 rounded-full text-[11.5px] font-medium bg-[#0071E3] text-white hover:bg-[#0077ED]"
                 >
-                  Chạy lại agy AI
+                  Chạy lại {agentBrandName}
                 </button>
               )}
               <button
@@ -662,7 +809,7 @@ export const App: React.FC = () => {
               <div className="p-2.5 rounded-[10px] bg-[#0071E3]/[0.06] border border-[#0071E3]/20 flex items-center gap-2.5 text-[#0071E3]">
                 <i className="ph-bold ph-spinner animate-spin text-sm"></i>
                 <span className="font-sans text-[12px] font-medium">
-                  agy đang kiểm tra mô hình & tổng hợp báo cáo JSON...
+                  {agentBrandName} đang kiểm tra mô hình & tổng hợp báo cáo JSON...
                 </span>
               </div>
             )}
@@ -680,7 +827,7 @@ export const App: React.FC = () => {
         {showLeftPanel && (
           <aside className="w-[330px] xl:w-[360px] h-full flex flex-col border-r border-black/[0.06] dark:border-white/[0.08] bg-white/65 dark:bg-[#141416]/75 backdrop-blur-xl z-20 shrink-0">
             {!audit ? (
-              /* STAGE 1: 3D Geometry Loaded -> Waiting for User to Run `agy` AI */
+              /* STAGE 1: 3D Geometry Loaded -> Waiting for User to Run AI */
               <div className="flex-1 flex flex-col p-4 overflow-y-auto">
                 <div className="flex items-center justify-between mb-2.5">
                   <span className="text-[12px] font-semibold text-[#6E6E73] dark:text-[#A1A1A6]">
@@ -711,20 +858,62 @@ export const App: React.FC = () => {
                     cong mặt vòm, mặt phẳng đỉnh và vùng Overhang.
                   </p>
 
+                  {/* CLI Switcher Segmented Pills if multiple engines */}
+                  {availableEngines.length > 1 && (
+                    <div className="mt-3.5 mb-1 p-1 rounded-[10px] bg-black/[0.04] dark:bg-white/[0.06] flex items-center gap-1">
+                      {availableEngines.map((eng) => {
+                        const isSel = selectedAgent === eng.id;
+                        return (
+                          <button
+                            key={eng.id}
+                            onClick={() => setSelectedAgent(eng.id)}
+                            disabled={!eng.available && eng.id !== 'engine'}
+                            className={`flex-1 py-1 px-1.5 rounded-[8px] text-[11px] font-medium flex items-center justify-center gap-1 spring-transition ${
+                              isSel
+                                ? 'bg-white dark:bg-[#2C2C2E] text-[#1D1D1F] dark:text-white shadow-xs font-semibold'
+                                : 'text-[#6E6E73] dark:text-[#A1A1A6] hover:text-[#1D1D1F] dark:hover:text-white disabled:opacity-40'
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                eng.id === 'claude'
+                                  ? 'bg-[#D97706]'
+                                  : eng.id === 'agy'
+                                  ? 'bg-[#0071E3]'
+                                  : 'bg-[#8E8E93]'
+                              }`}
+                            ></span>
+                            <span className="truncate">
+                              {eng.id === 'claude'
+                                ? 'Claude'
+                                : eng.id === 'agy'
+                                ? 'agy'
+                                : 'Offline'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   <button
-                    onClick={triggerAgyAnalysis}
+                    onClick={triggerAiAnalysis}
                     disabled={!sessionId || isAnalyzing || isLoadingFile}
-                    className="mt-4 w-full py-3 px-4 rounded-[12px] bg-[#0071E3] hover:bg-[#0077ED] active:scale-[0.99] text-white font-semibold text-[13.5px] shadow-md spring-transition flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="mt-3 w-full py-3 px-4 rounded-[12px] bg-[#0071E3] hover:bg-[#0077ED] active:scale-[0.99] text-white font-semibold text-[13.5px] shadow-md spring-transition flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     <i
                       className={`ph-bold ${
-                        isAnalyzing ? 'ph-spinner animate-spin' : 'ph-magic-wand'
+                        isAnalyzing
+                          ? 'ph-spinner animate-spin'
+                          : selectedAgent === 'claude'
+                          ? 'ph-sparkle'
+                          : 'ph-magic-wand'
                       } text-base`}
                     ></i>
                     <span>
                       {isAnalyzing
-                        ? 'agy AI đang chạy phân tích...'
-                        : 'Phân tích & Tối ưu bằng agy AI'}
+                        ? `${agentBrandName} đang chạy phân tích...`
+                        : `Phân tích & Tối ưu bằng ${agentBrandName}`}
                     </span>
                   </button>
                 </div>
@@ -733,7 +922,7 @@ export const App: React.FC = () => {
                 {agentLogs.length > 0 && (
                   <div className="mt-5">
                     <div className="text-[12px] font-semibold text-[#6E6E73] dark:text-[#A1A1A6] mb-2.5 flex items-center justify-between">
-                      <span>Hoạt động trực tiếp của agy AI</span>
+                      <span>Hoạt động trực tiếp của {agentBrandName}</span>
                       <span className="font-mono text-[11px] text-[#0071E3]">
                         {agentLogs.length} bước
                       </span>
@@ -809,11 +998,11 @@ export const App: React.FC = () => {
                   <div className="flex items-center justify-between gap-2 mb-2.5">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span className="text-[12px] font-semibold text-[#1D1D1F] dark:text-white truncate">
-                        Chẩn đoán {auditSource === 'agy' ? 'agy AI' : 'Morphology'}
+                        Chẩn đoán {auditSource === 'claude' ? 'Claude Code' : auditSource === 'agy' ? 'agy AI' : 'Morphology'}
                       </span>
                       <button
                         onClick={() => setShowAgentDrawer(true)}
-                        data-tip="Xem nhật ký suy luận của agy AI"
+                        data-tip={`Xem nhật ký suy luận của ${agentBrandName}`}
                         data-tip-pos="bottom"
                         className="w-6 h-6 rounded-md bg-[#0071E3]/10 text-[#0071E3] hover:bg-[#0071E3]/20 flex items-center justify-center shrink-0 spring-transition"
                       >
@@ -1217,7 +1406,7 @@ export const App: React.FC = () => {
                     Bảng Đề xuất Slicer & Per-Object Overrides
                   </div>
                   <p className="text-[12px] text-[#6E6E73] dark:text-[#A1A1A6] max-w-xs mt-1 leading-relaxed">
-                    Sau khi bạn bấm <strong>"Phân tích & Tối ưu bằng agy AI"</strong> ở cột bên
+                    Sau khi bạn bấm <strong>"Phân tích & Tối ưu bằng {agentBrandName}"</strong> ở cột bên
                     trái, AI Agent sẽ đối chiếu hình học 3D với cấu hình gốc của tác giả và xuất
                     bảng so sánh chi tiết tại đây.
                   </p>
@@ -1232,7 +1421,7 @@ export const App: React.FC = () => {
                         Thông số Slicer & Per-Object Diff
                       </h2>
                       <p className="text-[11px] text-[#6E6E73] dark:text-[#8E8E93] truncate">
-                        Đề xuất bởi {auditSource === 'agy' ? 'agy AI Agent' : 'Morphology Engine'} ·
+                        Đề xuất bởi {auditSource === 'claude' ? 'Claude Code CLI' : auditSource === 'agy' ? 'agy AI Agent' : 'Morphology Engine'} ·
                         Sửa hoặc bỏ tích
                       </p>
                     </div>
@@ -1414,9 +1603,9 @@ export const App: React.FC = () => {
                   <i className="ph-bold ph-upload-simple text-base"></i>
                 </div>
                 <div>
-                  <h3 className="text-[15px] font-semibold">Mở mô hình 3D (.3mf)</h3>
+                  <h3 className="text-[15px] font-semibold">Mở mô hình 3D (.3mf / .stl)</h3>
                   <p className="text-[12px] text-[#6E6E73] dark:text-[#A1A1A6]">
-                    Bước 1: Dựng 3D & đo hình học · Bước 2: Chạy agy AI phân tích
+                    Bước 1: Dựng 3D & đo hình học · Bước 2: Chạy AI phân tích & tối ưu
                   </p>
                 </div>
               </div>
@@ -1442,15 +1631,16 @@ export const App: React.FC = () => {
             >
               <i className="ph-duotone ph-cube-transparent text-4xl text-[#0071E3] mb-2"></i>
               <span className="text-[13.5px] font-medium">
-                Kéo thả file <code className="font-mono text-[#0071E3]">.3mf</code> vào đây hoặc bấm
-                để chọn
+                Kéo thả file{' '}
+                <code className="font-mono text-[#0071E3]">.3mf</code> hoặc{' '}
+                <code className="font-mono text-[#0071E3]">.stl</code> vào đây hoặc bấm để chọn
               </span>
               <span className="text-[11.5px] text-[#6E6E73] mt-1">
-                Hỗ trợ Bambu Studio & PrusaSlicer (.3mf)
+                Hỗ trợ Bambu Studio / PrusaSlicer (.3mf) & Binary / ASCII (.stl)
               </span>
               <input
                 type="file"
-                accept=".3mf"
+                accept=".3mf,.stl,.3MF,.STL"
                 className="hidden"
                 onChange={(e) => {
                   if (e.target.files && e.target.files[0]) {
@@ -1463,24 +1653,30 @@ export const App: React.FC = () => {
             {samples.length > 0 && (
               <div className="mt-4">
                 <div className="text-[11px] font-medium text-[#6E6E73] mb-2">
-                  Các file .3mf tìm thấy trong ~/Downloads của bạn:
+                  Các file .3mf & .stl tìm thấy trong ~/Downloads của bạn:
                 </div>
                 <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                  {samples.map((s) => (
-                    <button
-                      key={s.path}
-                      onClick={() => handleLoadLocalSample(s.path)}
-                      className="w-full p-2.5 rounded-[12px] bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] text-left flex items-center justify-between gap-2.5 spring-transition"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <i className="ph-fill ph-cube text-[#0071E3] text-lg shrink-0"></i>
-                        <span className="text-[12.5px] font-medium truncate">{s.name}</span>
-                      </div>
-                      <span className="text-[11px] font-mono text-[#6E6E73] shrink-0">
-                        {s.size_mb}
-                      </span>
-                    </button>
-                  ))}
+                  {samples.map((s) => {
+                    const isStl = s.name.toLowerCase().endsWith('.stl');
+                    return (
+                      <button
+                        key={s.path}
+                        onClick={() => handleLoadLocalSample(s.path)}
+                        className="w-full p-2.5 rounded-[12px] bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] text-left flex items-center justify-between gap-2.5 spring-transition"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <i className="ph-fill ph-cube text-[#0071E3] text-lg shrink-0"></i>
+                          <span className="text-[12.5px] font-medium truncate">{s.name}</span>
+                          <span className="text-[9.5px] font-mono font-semibold uppercase px-1.5 py-0.5 rounded bg-[#0071E3]/12 text-[#0071E3] shrink-0">
+                            {isStl ? 'STL' : '3MF'}
+                          </span>
+                        </div>
+                        <span className="text-[11px] font-mono text-[#6E6E73] shrink-0">
+                          {s.size_mb}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

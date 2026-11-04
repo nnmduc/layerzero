@@ -317,10 +317,10 @@ export const StorySection: React.FC = () => {
                 </span>
               </div>
 
-              {/* Coming Soon: Claude CLI */}
+              {/* Claude CLI - Now Supported */}
               <div className="rounded-xl bg-white/70 dark:bg-[#141416]/70 border border-[#1D1D1F]/[0.07] dark:border-white/[0.08] p-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-[#1D1D1F]/[0.06] dark:bg-white/[0.08] text-[#1D1D1F] dark:text-zinc-300 flex items-center justify-center font-mono font-semibold text-[12px]">
+                  <div className="w-9 h-9 rounded-lg bg-[#D97706]/10 text-[#D97706] flex items-center justify-center font-mono font-semibold text-[12px]">
                     CLI
                   </div>
                   <div>
@@ -328,13 +328,12 @@ export const StorySection: React.FC = () => {
                       Claude Code (Anthropic)
                     </div>
                     <div className="text-[11.5px] text-[#6E6E73] dark:text-zinc-400">
-                      Kết nối thuê bao Claude Pro / Max có sẵn
+                      Kết nối thuê bao Claude Pro / Max có sẵn · stream-json
                     </div>
                   </div>
                 </div>
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#1D1D1F]/[0.06] dark:bg-white/[0.08] text-[#6E6E73] dark:text-zinc-300 text-[11px] font-medium whitespace-nowrap">
-                  <Clock size={12} />
-                  <span>Sắp hỗ trợ</span>
+                <span className="px-2.5 py-1 rounded-full bg-[#D97706]/10 text-[#D97706] text-[11px] font-semibold whitespace-nowrap">
+                  Đang hỗ trợ
                 </span>
               </div>
 

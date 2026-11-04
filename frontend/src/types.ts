@@ -45,6 +45,7 @@ export interface ObjectTelemetry {
 export interface TelemetryData {
   filename: string;
   path: string;
+  source_format?: '3mf' | 'stl';
   file_size_mb: number;
   plates: PlateInfo[];
   objects: ObjectTelemetry[];
@@ -110,4 +111,22 @@ export interface AgentActivityLog {
   title: string;
   detail: string;
   elapsed_s: number;
+}
+
+export interface AgentEngineInfo {
+  id: 'claude' | 'agy' | 'engine';
+  name: string;
+  binary: string;
+  path: string | null;
+  version: string | null;
+  available: boolean;
+  badge: string;
+  description: string;
+}
+
+export interface AgentEnginesResponse {
+  engines: AgentEngineInfo[];
+  default_engine: 'claude' | 'agy' | 'engine';
+  has_multiple_clis: boolean;
+  available_count: number;
 }

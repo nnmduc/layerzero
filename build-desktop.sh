@@ -47,6 +47,8 @@ build_sidecar() {
         --hidden-import "uvicorn.lifespan" \
         --hidden-import "uvicorn.lifespan.on" \
         --hidden-import "multipart" \
+        --hidden-import "ai_runner" \
+        --hidden-import "agy_runner" \
         main.py
     )
     rm -rf "$DIR/backend/build_pyinstaller_$TARGET"

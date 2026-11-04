@@ -24,9 +24,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
-from agy_runner import _ensure_desktop_path, stream_agy_audit
-from patcher import apply_3mf_optimizations, build_baseline_audit
+from ai_runner import _ensure_desktop_path, get_available_engines, stream_agent_audit
+from patcher import apply_3mf_optimizations, apply_stl_export, build_baseline_audit
 from profiler import profile_3mf
+
+SUPPORTED_EXTENSIONS = (".3mf", ".stl")
 
 _ensure_desktop_path()
 
@@ -110,6 +112,7 @@ class ApplyRequest(BaseModel):
     settings_diff: list[dict[str, Any]]
     printer_preset: str = "Bambu Lab A1 0.4 nozzle"
     filament_preset: str = "Bambu PLA Lite @BBL A1"
+    export_format: str = "3mf"
     open_in_bambu: bool = False
     reveal_in_finder: bool = False
 
@@ -119,19 +122,30 @@ def health_check() -> dict[str, str]:
     return {"status": "ok", "service": "layerzero-backend", "version": "2.0.0"}
 
 
+@app.get("/api/agent-engines")
+def list_agent_engines() -> dict[str, Any]:
+    """Returns detected AI agent CLI engines (Claude Code, agy, Morphology Rule Engine)."""
+    return get_available_engines()
+
+
 @app.get("/api/samples")
 def list_local_samples() -> list[dict[str, str]]:
-    """Finds available .3mf files in ~/Downloads for instant 1-click testing."""
+    """Finds available .3mf and .stl files in ~/Downloads for instant 1-click testing."""
     downloads = Path.home() / "Downloads"
     samples: list[dict[str, str]] = []
     if downloads.exists():
-        for p in sorted(downloads.rglob("*.3mf")):
-            if "Optimized" not in p.name and len(samples) < 8:
-                samples.append({
-                    "name": p.name,
-                    "path": str(p),
-                    "size_mb": f"{round(p.stat().st_size / (1024 * 1024), 2)} MB",
-                })
+        candidates = [
+            p
+            for p in downloads.rglob("*")
+            if p.is_file() and p.suffix.lower() in SUPPORTED_EXTENSIONS and "Optimized" not in p.name
+        ]
+        candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        for p in candidates[:8]:
+            samples.append({
+                "name": p.name,
+                "path": str(p),
+                "size_mb": f"{round(p.stat().st_size / (1024 * 1024), 2)} MB",
+            })
     return samples
 
 
@@ -142,8 +156,8 @@ async def upload_3mf(
     filament_preset: str = "Bambu PLA Lite @BBL A1",
 ) -> dict[str, Any]:
     safe_filename = Path(file.filename or "").name
-    if not safe_filename.lower().endswith(".3mf"):
-        raise HTTPException(status_code=400, detail="Vui lòng chọn file định dạng .3mf")
+    if not safe_filename.lower().endswith(SUPPORTED_EXTENSIONS):
+        raise HTTPException(status_code=400, detail="Vui lòng chọn file định dạng .3mf hoặc .stl")
 
     _prune_old_sessions()
     session_id = str(uuid.uuid4())[:8]
@@ -174,8 +188,8 @@ async def upload_3mf(
 @app.post("/api/load-local")
 def load_local_3mf(req: LoadLocalRequest) -> dict[str, Any]:
     src = Path(req.path).expanduser().resolve()
-    if not src.exists() or not src.is_file() or not src.name.lower().endswith(".3mf"):
-        raise HTTPException(status_code=404, detail=f"Không tìm thấy file .3mf: {req.path}")
+    if not src.exists() or not src.is_file() or not src.name.lower().endswith(SUPPORTED_EXTENSIONS):
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy file .3mf hoặc .stl: {req.path}")
 
     _prune_old_sessions()
     session_id = str(uuid.uuid4())[:8]
@@ -202,17 +216,18 @@ def load_local_3mf(req: LoadLocalRequest) -> dict[str, Any]:
 
 
 @app.get("/api/analyze/{session_id}")
-async def analyze_with_agy(
+async def analyze_with_ai_agent(
     session_id: str,
     printer_preset: str = "Bambu Lab A1 0.4 nozzle",
     filament_preset: str = "Bambu PLA Lite @BBL A1",
+    agent: str = "auto",
 ) -> StreamingResponse:
     if session_id not in SESSIONS:
         raise HTTPException(status_code=404, detail="Session không tồn tại")
 
     sess = SESSIONS[session_id]
     file_path: Path = sess["path"]
-    # Strip heavy mesh_preview before passing telemetry to agy prompt
+    # Strip heavy mesh_preview before passing telemetry to AI agent prompt
     light_telemetry = dict(sess["telemetry"])
     light_telemetry["objects"] = [
         {k: v for k, v in obj.items() if k != "mesh_preview"}
@@ -221,7 +236,7 @@ async def analyze_with_agy(
     baseline = build_baseline_audit(light_telemetry, printer_preset, filament_preset)
 
     return StreamingResponse(
-        stream_agy_audit(file_path, light_telemetry, baseline, printer_preset, filament_preset),
+        stream_agent_audit(file_path, light_telemetry, baseline, printer_preset, filament_preset, agent_id=agent),
         media_type="text/event-stream",
     )
 
@@ -239,15 +254,23 @@ def apply_and_export(req: ApplyRequest) -> dict[str, Any]:
             stem = stem[: -len(suffix)]
             break
 
-    dst_path = src_path.with_name(f"{stem}_LayerZero_Optimized.3mf")
-    res = apply_3mf_optimizations(
-        src_path=src_path,
-        dst_path=dst_path,
-        diagnostic_cards=req.diagnostic_cards,
-        settings_diff=req.settings_diff,
-        printer_preset=req.printer_preset,
-        filament_preset=req.filament_preset,
-    )
+    fmt = "stl" if req.export_format.lower() == "stl" else "3mf"
+    dst_path = src_path.with_name(f"{stem}_LayerZero_Optimized.{fmt}")
+    if fmt == "stl":
+        res = apply_stl_export(
+            src_path=src_path,
+            dst_path=dst_path,
+            diagnostic_cards=req.diagnostic_cards,
+        )
+    else:
+        res = apply_3mf_optimizations(
+            src_path=src_path,
+            dst_path=dst_path,
+            diagnostic_cards=req.diagnostic_cards,
+            settings_diff=req.settings_diff,
+            printer_preset=req.printer_preset,
+            filament_preset=req.filament_preset,
+        )
     sess["last_output_path"] = dst_path
 
     # Also copy to ~/Downloads so desktop users always have direct access
@@ -278,13 +301,18 @@ def apply_and_export(req: ApplyRequest) -> dict[str, Any]:
 @app.get("/api/download/{session_id}")
 def download_optimized_3mf(session_id: str) -> FileResponse:
     if session_id not in SESSIONS or not SESSIONS[session_id].get("last_output_path"):
-        raise HTTPException(status_code=404, detail="Chưa có file .3mf được xuất trong phiên này")
+        raise HTTPException(status_code=404, detail="Chưa có file được xuất trong phiên này")
 
     out_path: Path = SESSIONS[session_id]["last_output_path"]
+    media_type = (
+        "model/stl"
+        if out_path.suffix.lower() == ".stl"
+        else "application/vnd.ms-package.3dmanufacturing-3dmodel+xml"
+    )
     return FileResponse(
         path=out_path,
         filename=out_path.name,
-        media_type="application/vnd.ms-package.3dmanufacturing-3dmodel+xml",
+        media_type=media_type,
     )
 
 

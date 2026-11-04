@@ -13,8 +13,12 @@ LayerZero Studio operates in a **3-Stage Interactive Workflow**:
    - Extracts all 3D objects, applies their 3MF affine transformation matrices, computes vectorized surface topology metrics via NumPy, and returns compact indexed mesh buffers (`vertices`, `indices`, `vertex_zones`, `vertex_extruders`, `filament_colours`) for immediate rendering in the Three.js WebGL viewport.
    - Generates a deterministic baseline audit report (`build_baseline_audit`) used both as structured context for the AI agent and as an instant offline fallback.
 
-2. **Stage 2 — Unleashed Headless AI Audit (`GET /api/analyze/{session_id}`)**:
-   - Spawns `agy -p <prompt> --dangerously-skip-permissions --output-format stream-json --json-schema <audit_schema.json>`.
+2. **Stage 2 — Unleashed Multi-CLI Headless AI Audit (`GET /api/analyze/{session_id}?agent=claude|agy|engine`)**:
+   - Detects available AI CLIs on the system (`claude` / `claude-code`, `agy`) and allows the user to switch dynamically.
+   - Spawns either:
+     - `claude -p <prompt> --dangerously-skip-permissions --output-format stream-json --verbose --json-schema <audit_schema.json>`
+     - `agy -p <prompt> --dangerously-skip-permissions --output-format stream-json --json-schema <audit_schema.json>`
+     - Morphology Rule Engine (100% offline fallback)
    - Streams real-time Server-Sent Events (`type: "log" | "status" | "complete"`) to the frontend Dynamic Island and Live Terminal Drawer.
    - Validates the structured JSON response containing `diagnostic_cards` and `settings_diff`.
 

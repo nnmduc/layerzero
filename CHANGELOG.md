@@ -5,6 +5,21 @@ All notable changes to **LayerZero Studio** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-11-04
+
+### Added
+- **Multi-CLI AI Hub (`backend/ai_runner.py`)**:
+  - Full native support for Anthropic's **Claude Code CLI (`claude`)** alongside Google Antigravity CLI (`agy`).
+  - Automated detection of installed CLIs with dynamic CLI selection API (`GET /api/agent-engines`).
+  - Seamless stream-json SSE parsing for Claude Code CLI with 16MB stream buffers and `--json-schema` structured output validation.
+  - Interactive multi-engine segmented pill switcher in the Desktop UI (`[ Claude ] [ agy ] [ Offline ]`) with auto-fallback to the deterministic NumPy morphology engine.
+- **Responsive Layout & Small-Screen UI Refinement**:
+  - Clamped header elements, responsive breakpoints (`hidden sm:flex`, `hidden xl:flex`, `hidden 2xl:flex`), and auto-hiding secondary controls to eliminate UI crowding on sub-1440px displays and compact laptop screens.
+  - Responsive file selector labels, Dynamic Island status pills, and Bambu Studio export buttons.
+- **Direct Cloudflare R2 Release Distribution**:
+  - Official macOS Apple Silicon (`arm64`) and Intel (`x64`) signed disk images (`.dmg`) hosted via high-speed Cloudflare R2 edge network at `https://dl.layerzero.io.vn/`.
+  - Deployment pipeline integrated with Cloudflare `cf` CLI.
+
 ## [2.0.0] - 2026-11-04
 
 ### Added

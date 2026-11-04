@@ -36,7 +36,7 @@ When downloading `.3mf` files from MakerWorld, Printables, or Thingiverse, newco
 
 ## Giới thiệu (Tiếng Việt)
 
-**LayerZero Studio** là công cụ mã nguồn mở kết hợp giữa **Toán học Hình thái 3D (Vectorized NumPy)** và **Headless AI Agent (`agy`)** giúp người dùng máy in 3D (đặc biệt là hệ sinh thái Bambu Studio / PrusaSlicer / OrcaSlicer):
+**LayerZero Studio** là công cụ mã nguồn mở kết hợp giữa **Toán học Hình thái 3D (Vectorized NumPy)** và **Headless AI Agent (Claude Code / `agy`)** giúp người dùng máy in 3D (đặc biệt là hệ sinh thái Bambu Studio / PrusaSlicer / OrcaSlicer):
 1. **Giải phẫu trực quan file `.3mf`**: Đọc trực tiếp lưới tam giác 3D, ma trận biến đổi 12-float, màu sơn đa sắc AMS (`paint_color`), vùng tô Support (`paint_supports`) và cấu hình `Metadata/*.config`.
 2. **Tối ưu không phá hủy (Non-Destructive Patching)**: Tự động vạt phẳng đáy khớp cầu siêu nhỏ (`Z = 0.80mm`), bọc đài đỡ Support Enforcer 360° ở gầm, gia cố riêng ốc vít bằng Per-Object Overrides, bật Ironing cho mặt phẳng ngang và Scarf Seam cho thân trụ tròn — trong khi **giữ nguyên 100% bảng màu đa sắc AMS và tháp Prime Tower**.
 3. **Vừa in vừa học (Learn by Diff)**: Đối chiếu trực quan 3 cột (**Mặc định Hệ thống** vs **File Tác giả** vs **LayerZero Đề xuất**) kèm giải thích nguyên lý cơ khí & nhiệt động học rõ ràng bằng tiếng Việt.
@@ -53,7 +53,7 @@ flowchart LR
 
     subgraph Backend["2. Python FastAPI Sidecar (:8000)"]
         B["profiler.py\nVectorized NumPy Mesh & Topology Engine"]
-        C["agy_runner.py\nHeadless AI Agent Stream (SSE)"]
+        C["ai_runner.py\nMulti-CLI Agent Stream (Claude Code / agy SSE)"]
         D["patcher.py\nDeterministic Rule Synthesis & 3MF Patcher"]
     end
 
@@ -91,10 +91,12 @@ For a deep dive into the coordinate math, XML namespaces, and data structures, r
 - Supports both **Bambu Studio Production Extension** (`3D/Objects/*.model` referenced via `<component p:path="...">`) and **Standard / PrusaSlicer inline `<mesh>`** `.3mf` files.
 - Computes world-space bounding boxes, Layer 1 (`Z <= 0.22mm`) vs Layer 10 (`Z <= 2.0mm`) contact footprints, triangle normal distributions, cylindrical radial symmetry scores, and painted support/extruder zones.
 
-### 2. Unleashed Headless AI Agent (`backend/agy_runner.py`)
+### 2. Multi-CLI Unleashed Headless AI Agent (`backend/ai_runner.py`)
+- Supports **Anthropic Claude Code CLI (`claude`)** and **Google Antigravity CLI (`agy`)**.
+- **Tự động phát hiện Multi-CLI**: Cho phép người dùng trực tiếp lựa chọn CLI mong muốn ngay trên giao diện Studio khi máy cài đặt nhiều công cụ AI.
 - Streams real-time reasoning and tool execution (`init`, `tool`, `agent_response`, `result`) to the UI via **Server-Sent Events (SSE)**.
 - Enforces strict JSON output compliance against [`backend/schemas/audit_schema.json`](backend/schemas/audit_schema.json).
-- Automatically falls back to the built-in deterministic **Morphology Rule Engine** when `agy` CLI is not installed, ensuring **100% offline reliability**.
+- Automatically falls back to the built-in deterministic **Morphology Rule Engine** when no AI CLI is installed, ensuring **100% offline reliability**.
 
 ### 3. Non-Destructive `.3mf` Geometry & Slicer Patcher (`backend/patcher.py`)
 | Action Code | Pillar | What It Modifies |
@@ -123,7 +125,8 @@ layerzero/
 │   ├── main.py               # FastAPI REST + SSE endpoints & session lifecycle
 │   ├── profiler.py           # Vectorized NumPy 3D mesh & surface topology profiler
 │   ├── patcher.py            # Non-destructive .3mf XML/ZIP patcher & rule synthesis
-│   ├── agy_runner.py         # Headless `agy` CLI subprocess stream runner
+│   ├── ai_runner.py          # Unified Multi-CLI runner (Claude Code & agy)
+│   ├── agy_runner.py         # Headless `agy` CLI compatibility wrapper
 │   ├── requirements.txt      # Python dependencies
 │   └── schemas/
 │       └── audit_schema.json # Strict JSON Schema for AI diagnostic reports
@@ -173,7 +176,7 @@ All official desktop installers are available on [**GitHub Releases**](https://g
 - **Node.js**: `18+` (with `npm`)
 - **Rust & Cargo** *(Optional — only required for building the native Tauri desktop app)*
 - **Bambu Studio** *(Optional — for 1-click "Open in Bambu Studio" export)*
-- **`agy` CLI** *(Optional — for live LLM agent streaming; automatically falls back to the built-in NumPy Morphology Engine if absent)*
+- **AI CLI Engine** *(Optional — Claude Code CLI `claude` or Antigravity CLI `agy` for live LLM agent streaming; automatically falls back to the built-in NumPy Morphology Engine if absent)*
 
 ### Quick Start (Web / Local Studio Mode)
 
@@ -289,10 +292,11 @@ Every push to the `main` branch (or `v*` tag) triggers [`.github/workflows/relea
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `GET` | `/api/health` | Health check returning service status and version (`2.0.0`). |
+| `GET` | `/api/agent-engines` | Returns available AI CLI engines (`claude`, `agy`, `engine`) and active multi-CLI status. |
 | `GET` | `/api/samples` | Lists up to 8 sample `.3mf` files in `~/Downloads` for 1-click testing. |
 | `POST` | `/api/upload` | Uploads a `.3mf` file, extracts 3D mesh buffers & morphology telemetry, and synthesizes baseline audit cards. |
 | `POST` | `/api/load-local` | Loads a local `.3mf` file by path and returns 3D telemetry + baseline audit. |
-| `GET` | `/api/analyze/{session_id}` | Streams real-time `agy` AI analysis steps (`log`, `status`, `complete`) via `text/event-stream` (SSE). |
+| `GET` | `/api/analyze/{session_id}` | Streams real-time AI analysis steps (`log`, `status`, `complete`) via `text/event-stream` (SSE). Query param `agent=claude|agy|engine|auto`. |
 | `POST` | `/api/apply` | Applies user-approved geometry patches & slicer settings to generate `<name>_LayerZero_Optimized.3mf`. |
 | `GET` | `/api/download/{session_id}` | Downloads the optimized `.3mf` archive for the active session. |
 

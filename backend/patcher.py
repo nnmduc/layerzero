@@ -10,14 +10,20 @@ LayerZero Universal Non-Destructive 3MF Patcher & Deterministic Rule Synthesis
 
 import json
 import math
+import struct
 import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 from profiler import (
+    NS_URI_BBL,
     NS_URI_M,
     NS_URI_P,
+    STL_BINARY_DTYPE,
+    _parse_stl_file,
     fmt_val,
     get_system_baseline,
     profile_3mf,
@@ -508,10 +514,18 @@ def build_baseline_audit(
     aesthetics_penalties = len(dome_objs) * 10 + len(flat_top_objs) * 8 + len(cyl_objs) * 8 + (10 if orig_cfg.get("wall_generator") != "arachne" else 0)
     aesthetics_before = max(42, min(82, 90 - aesthetics_penalties))
 
+    is_stl = telemetry.get("source_format") == "stl"
+    total_tris = sum(o.get("triangle_count", 0) for o in objects)
+    summary_prefix = (
+        f"Đã phân tích lưới 3D .STL ({total_tris:,} tam giác) & tổng hợp cấu hình Slicer tối ưu. "
+        if is_stl
+        else f"Đã phân tích {len(telemetry.get('plates', []))} khay in ({len(objects)} chi tiết). "
+    )
+
     return {
         "summary": (
-            f"Đã phân tích {len(telemetry.get('plates', []))} khay in ({len(objects)} chi tiết). "
-            f"Phát hiện {len(pinpoint_objs)} chi tiết tiếp xúc điểm/khớp cầu, {len(dome_objs)} mặt vòm cầu, "
+            summary_prefix
+            + f"Phát hiện {len(pinpoint_objs)} chi tiết tiếp xúc điểm/khớp cầu, {len(dome_objs)} mặt vòm cầu, "
             f"{len(flat_top_objs)} mặt đỉnh phẳng ngang và {len(cyl_objs)} biên dạng trụ tròn."
         ),
         "safety_score_before": safety_before,
@@ -626,8 +640,11 @@ def apply_3mf_optimizations(
     }
 
     cfg = dict(orig_cfg)
+    INTERNAL_PROFILE_KEYS = {"type", "name", "from", "instantiation", "inherits", "include", "setting_id", "description"}
     for k, v in base_cfg.items():
-        if k not in cfg or k in PRESERVE_ORIG_KEYS or k.startswith("machine_max_"):
+        if k in PRESERVE_ORIG_KEYS or k in INTERNAL_PROFILE_KEYS or k.startswith("machine_max_"):
+            continue
+        if orig_cfg and k not in cfg:
             continue
         orig_val = orig_cfg.get(k)
         if isinstance(orig_val, list):
@@ -764,6 +781,19 @@ def apply_3mf_optimizations(
 
     applied_summary: list[str] = []
 
+    if src_path.suffix.lower() == ".stl":
+        return _export_stl_to_3mf(
+            src_path=src_path,
+            dst_path=dst_path,
+            telemetry=telemetry,
+            cfg=cfg,
+            per_object_patches=per_object_patches,
+            flatten_mm=flatten_mm,
+            do_reinforce_supports=do_reinforce_supports,
+            do_rotate_yaw=do_rotate_yaw,
+            applied_summary=applied_summary,
+        )
+
     with zipfile.ZipFile(src_path, "r") as zin:
         namelist = set(zin.namelist())
         has_ms = "Metadata/model_settings.config" in namelist
@@ -866,6 +896,276 @@ def apply_3mf_optimizations(
                 zout.writestr(item, data)
             if "Metadata/project_settings.config" not in namelist:
                 zout.writestr("Metadata/project_settings.config", json.dumps(cfg, indent=4).encode("utf-8"))
+
+    return {
+        "output_path": str(dst_path),
+        "output_filename": dst_path.name,
+        "applied_summary": applied_summary,
+    }
+
+
+def _export_stl_to_3mf(
+    src_path: Path,
+    dst_path: Path,
+    telemetry: dict[str, Any],
+    cfg: dict[str, Any],
+    per_object_patches: dict[str, dict[str, str]],
+    flatten_mm: float,
+    do_reinforce_supports: bool,
+    do_rotate_yaw: bool,
+    applied_summary: list[str],
+) -> dict[str, Any]:
+    """
+    Packages an `.stl` mesh into a complete Bambu Studio / PrusaSlicer compatible `.3mf` archive,
+    applying vectorized Z-bottom flattening, Z-yaw rotation, 360° overhang support painting
+    (`paint_supports="4"`), per-object overrides, and global slicer settings.
+    """
+    verts, tris = _parse_stl_file(src_path)
+    obj_name = src_path.stem
+    flags = telemetry["objects"][0]["morphology_flags"] if telemetry.get("objects") else []
+
+    if verts.shape[0] > 0 and tris.shape[0] > 0:
+        # Center XY at (0, 0) and place bottom at Z = 0
+        min_xyz = verts.min(axis=0)
+        max_xyz = verts.max(axis=0)
+        verts[:, 0] -= (min_xyz[0] + max_xyz[0]) * 0.5
+        verts[:, 1] -= (min_xyz[1] + max_xyz[1]) * 0.5
+        verts[:, 2] -= min_xyz[2]
+
+        if do_rotate_yaw:
+            # 90-degree CCW rotation around Z axis: (x, y) -> (-y, x)
+            old_x = verts[:, 0].copy()
+            verts[:, 0] = -verts[:, 1]
+            verts[:, 1] = old_x
+            applied_summary.append(f"{obj_name}: rotated 90° around Z-axis for bed-slinger Y-inertia")
+
+        do_flat = flatten_mm > 0
+        do_sup = do_reinforce_supports and "SLOTTED_OR_SMALL_SCREW" not in flags
+        dz = flatten_mm if do_flat else 0.20
+
+        paint_mask = np.zeros(tris.shape[0], dtype=bool)
+        if do_sup:
+            v1 = verts[tris[:, 0]]
+            v2 = verts[tris[:, 1]]
+            v3 = verts[tris[:, 2]]
+            z_avg = (v1[:, 2] + v2[:, 2] + v3[:, 2]) / 3.0
+            cross = np.cross(v2 - v1, v3 - v1)
+            lengths = np.linalg.norm(cross, axis=1)
+            nz = cross[:, 2] / np.where(lengths > 1e-9, lengths, 1.0)
+            paint_mask = (z_avg >= (dz + 0.05)) & (z_avg <= 8.0) & (nz < -0.10)
+
+        flattened_verts = 0
+        if do_flat:
+            clamp_mask = verts[:, 2] < flatten_mm
+            flattened_verts = int(np.sum(clamp_mask))
+            verts[clamp_mask, 2] = flatten_mm
+            verts[:, 2] -= flatten_mm
+
+        painted_added = int(np.sum(paint_mask))
+        if flattened_verts > 0 or painted_added > 0:
+            applied_summary.append(
+                f"{obj_name}: flattened {flattened_verts} vertices ({flatten_mm}mm) & painted {painted_added} support triangles"
+            )
+    else:
+        paint_mask = np.zeros(0, dtype=bool)
+
+    v_lines = [f'          <vertex x="{vx:.6f}" y="{vy:.6f}" z="{vz:.6f}"/>' for vx, vy, vz in verts]
+    t_lines = [
+        f'          <triangle v1="{t0}" v2="{t1}" v3="{t2}" paint_supports="4"/>'
+        if pm
+        else f'          <triangle v1="{t0}" v2="{t1}" v3="{t2}"/>'
+        for (t0, t1, t2), pm in zip(tris, paint_mask)
+    ]
+
+    model_xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        f'<model unit="millimeter" xml:lang="en-US" xmlns="{NS_URI_M}" xmlns:BambuStudio="{NS_URI_BBL}" xmlns:p="{NS_URI_P}">\n'
+        '  <metadata name="BambuStudio:3mfVersion">1</metadata>\n'
+        '  <resources>\n'
+        f'    <object id="1" name="{obj_name}" type="model">\n'
+        '      <mesh>\n'
+        '        <vertices>\n'
+        + "\n".join(v_lines)
+        + "\n        </vertices>\n"
+        "        <triangles>\n"
+        + "\n".join(t_lines)
+        + "\n        </triangles>\n"
+        "      </mesh>\n"
+        "    </object>\n"
+        "  </resources>\n"
+        "  <build>\n"
+        '    <item objectid="1" transform="1 0 0 0 1 0 0 0 1 128 128 0" printable="1"/>\n'
+        "  </build>\n"
+        "</model>\n"
+    )
+
+    patch_dict = dict(per_object_patches.get("1", {}))
+    patch_dict.pop("screw_bundle_override", None)
+    if patch_dict:
+        applied_summary.append(f"Per-object overrides applied to Object #1 ({len(patch_dict)} keys)")
+
+    obj_meta_lines = [
+        f'    <metadata key="name" value="{obj_name}"/>',
+        '    <metadata key="extruder" value="1"/>',
+    ]
+    for k, v in patch_dict.items():
+        obj_meta_lines.append(f'    <metadata key="{k}" value="{v}"/>')
+
+    ms_xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        "<config>\n"
+        '  <object id="1">\n'
+        + "\n".join(obj_meta_lines)
+        + "\n"
+        '    <part id="1" subtype="normal_part">\n'
+        f'      <metadata key="name" value="{obj_name}"/>\n'
+        '      <metadata key="matrix" value="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1"/>\n'
+        '      <metadata key="extruder" value="1"/>\n'
+        "    </part>\n"
+        "  </object>\n"
+        "  <plate>\n"
+        '    <metadata key="plater_id" value="1"/>\n'
+        '    <metadata key="plater_name" value="Plate 1"/>\n'
+        '    <metadata key="locked" value="false"/>\n'
+        "    <model_instance>\n"
+        '      <metadata key="object_id" value="1"/>\n'
+        '      <metadata key="instance_id" value="0"/>\n'
+        '      <metadata key="identify_id" value="1"/>\n'
+        "    </model_instance>\n"
+        "  </plate>\n"
+        "  <assemble>\n"
+        '    <assemble_item object_id="1" instance_id="0" transform="1 0 0 0 1 0 0 0 1 128 128 0" offset="0 0 0"/>\n'
+        "  </assemble>\n"
+        "</config>\n"
+    )
+
+    content_types_xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">\n'
+        '  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>\n'
+        '  <Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/>\n'
+        '  <Default Extension="config" ContentType="text/xml"/>\n'
+        "</Types>\n"
+    )
+
+    rels_xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">\n'
+        '  <Relationship Target="/3D/3dmodel.model" Id="rel-1" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>\n'
+        "</Relationships>\n"
+    )
+
+    with zipfile.ZipFile(dst_path, "w", compression=zipfile.ZIP_DEFLATED) as zout:
+        zout.writestr("[Content_Types].xml", content_types_xml.encode("utf-8"))
+        zout.writestr("_rels/.rels", rels_xml.encode("utf-8"))
+        zout.writestr("3D/3dmodel.model", model_xml.encode("utf-8"))
+        zout.writestr("Metadata/model_settings.config", ms_xml.encode("utf-8"))
+        zout.writestr("Metadata/project_settings.config", json.dumps(cfg, indent=4).encode("utf-8"))
+
+    return {
+        "output_path": str(dst_path),
+        "output_filename": dst_path.name,
+        "applied_summary": applied_summary,
+    }
+
+
+def apply_stl_export(
+    src_path: Path,
+    dst_path: Path,
+    diagnostic_cards: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """
+    Exports a geometry-optimized Binary `.stl` mesh from either an `.stl` or `.3mf` source,
+    applying approved geometry modifications (`FLATTEN_BOTTOM` and `ROTATE_YAW`).
+    """
+    telemetry = profile_3mf(src_path, include_preview_mesh=True)
+    approved_actions = {c["action_type"]: c for c in diagnostic_cards if c.get("approved")}
+    flatten_mm = float(approved_actions["FLATTEN_BOTTOM"]["param_value"]) if "FLATTEN_BOTTOM" in approved_actions else 0.0
+    do_rotate_yaw = "ROTATE_YAW" in approved_actions
+
+    all_tri_verts: list[np.ndarray] = []
+    applied_summary: list[str] = []
+
+    if src_path.suffix.lower() == ".stl":
+        verts, tris = _parse_stl_file(src_path)
+        if verts.shape[0] > 0 and tris.shape[0] > 0:
+            min_xyz = verts.min(axis=0)
+            max_xyz = verts.max(axis=0)
+            verts[:, 0] -= (min_xyz[0] + max_xyz[0]) * 0.5
+            verts[:, 1] -= (min_xyz[1] + max_xyz[1]) * 0.5
+            verts[:, 2] -= min_xyz[2]
+
+            if do_rotate_yaw:
+                old_x = verts[:, 0].copy()
+                verts[:, 0] = -verts[:, 1]
+                verts[:, 1] = old_x
+                applied_summary.append(f"{src_path.stem}: rotated 90° around Z-axis")
+
+            if flatten_mm > 0:
+                clamp_mask = verts[:, 2] < flatten_mm
+                f_cnt = int(np.sum(clamp_mask))
+                verts[clamp_mask, 2] = flatten_mm
+                verts[:, 2] -= flatten_mm
+                applied_summary.append(f"{src_path.stem}: flattened {f_cnt} bottom vertices ({flatten_mm}mm)")
+
+            all_tri_verts.append(verts[tris])
+    else:
+        for obj in telemetry.get("objects", []):
+            preview = obj.get("mesh_preview", {})
+            raw_v = preview.get("vertices", [])
+            raw_i = preview.get("indices", [])
+            if not raw_v or not raw_i:
+                continue
+            verts = np.array(raw_v, dtype=np.float32).reshape(-1, 3)
+            tris = np.array(raw_i, dtype=np.int32).reshape(-1, 3)
+            min_xyz = verts.min(axis=0)
+            max_xyz = verts.max(axis=0)
+            verts[:, 0] -= (min_xyz[0] + max_xyz[0]) * 0.5
+            verts[:, 1] -= (min_xyz[1] + max_xyz[1]) * 0.5
+            verts[:, 2] -= min_xyz[2]
+
+            if do_rotate_yaw and "Y_AXIS_INERTIA_TALL" in obj.get("morphology_flags", []):
+                old_x = verts[:, 0].copy()
+                verts[:, 0] = -verts[:, 1]
+                verts[:, 1] = old_x
+                applied_summary.append(f"{obj['name']}: rotated 90° around Z-axis")
+
+            flags = obj.get("morphology_flags", [])
+            if flatten_mm > 0 and ("PINPOINT_BALL_BASE" in flags or "MISSING_BASE_SUPPORTS" in flags):
+                clamp_mask = verts[:, 2] < flatten_mm
+                f_cnt = int(np.sum(clamp_mask))
+                verts[clamp_mask, 2] = flatten_mm
+                verts[:, 2] -= flatten_mm
+                applied_summary.append(f"{obj['name']}: flattened {f_cnt} bottom vertices ({flatten_mm}mm)")
+
+            wx, wy, _wz = obj.get("world_pos", [0.0, 0.0, 0.0])
+            verts[:, 0] += float(wx) - 128.0
+            verts[:, 1] += float(wy) - 128.0
+            all_tri_verts.append(verts[tris])
+
+    if all_tri_verts:
+        tri_verts = np.vstack(all_tri_verts).astype(np.float32)
+    else:
+        tri_verts = np.zeros((0, 3, 3), dtype=np.float32)
+
+    num_tris = int(tri_verts.shape[0])
+    out_records = np.zeros(num_tris, dtype=STL_BINARY_DTYPE)
+    if num_tris > 0:
+        v1 = tri_verts[:, 0, :]
+        v2 = tri_verts[:, 1, :]
+        v3 = tri_verts[:, 2, :]
+        cross = np.cross(v2 - v1, v3 - v1)
+        lengths = np.linalg.norm(cross, axis=1, keepdims=True)
+        normals = cross / np.where(lengths > 1e-9, lengths, 1.0)
+        out_records["normal"] = normals.astype(np.float32)
+        out_records["vertices"] = tri_verts
+        out_records["attr"] = 0
+
+    header = b"LayerZero Studio v2.0 Optimized Binary STL".ljust(80, b"\x00")
+    with open(dst_path, "wb") as fp:
+        fp.write(header)
+        fp.write(struct.pack("<I", num_tris))
+        fp.write(out_records.tobytes())
 
     return {
         "output_path": str(dst_path),

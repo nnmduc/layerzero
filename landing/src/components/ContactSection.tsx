@@ -78,7 +78,7 @@ export const ContactSection: React.FC = () => {
             <span className="font-semibold text-[#1D1D1F] dark:text-zinc-200">
               LayerZero Studio
             </span>
-            <span>· Hỗ trợ agy CLI (Google Antigravity) · Sắp hỗ trợ Claude & Codex.</span>
+            <span>· Hỗ trợ Claude Code & agy CLI · Sắp hỗ trợ Codex.</span>
           </div>
           <div>
             Hỗ trợ macOS, Windows & Linux ·{' '}

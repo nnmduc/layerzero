@@ -40,7 +40,7 @@ const PLATFORM_CONFIG: Record<
     name: 'macOS',
     ctaLabel: 'Tải cho macOS',
     subtitle:
-      'Tích hợp sẵn nhân Python độc lập. Kéo vào Applications là dùng ngay cùng Bambu Studio và agy CLI.',
+      'Tích hợp sẵn nhân Python độc lập. Kéo vào Applications là dùng ngay cùng Bambu Studio, Claude Code và agy CLI.',
     reqText: 'macOS 13.0+ (Apple Silicon M1–M4 & Intel) · Signed Apple Developer ID',
     variants: [
       {

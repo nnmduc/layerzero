@@ -88,7 +88,7 @@ export const FeaturesBento: React.FC = () => {
             </div>
           </motion.div>
 
-          {/* Cell 2 (Span 5): AI CLI Hub (agy active + Claude & Codex coming soon) */}
+          {/* Cell 2 (Span 5): AI CLI Hub (Claude Code & agy active, Multi-CLI) */}
           <motion.div
             initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -100,32 +100,29 @@ export const FeaturesBento: React.FC = () => {
               <div className="flex items-center justify-between gap-2 mb-2">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0071E3] text-white text-[11.5px] font-semibold">
                   <Sparkle size={13} weight="fill" />
-                  <span>AI CLI Cá nhân</span>
+                  <span>Multi-CLI AI Hub</span>
                 </span>
                 <span className="text-[12px] font-mono text-[#0071E3] dark:text-[#2997FF] font-semibold">
                   Zero API Fee
                 </span>
               </div>
               <h3 className="text-xl sm:text-2xl font-bold text-[#1D1D1F] dark:text-white tracking-tight mb-1.5">
-                Hỗ trợ agy CLI. Sắp có Claude & Codex.
+                Hỗ trợ Claude Code & agy CLI
               </h3>
               <p className="text-[13.5px] text-[#6E6E73] dark:text-zinc-300">
-                Tận dụng trực tiếp gói AI bạn đang dùng hàng ngày để phân tích sâu file .3mf.
+                Tự động nhận diện và cho phép lựa chọn linh hoạt giữa Claude Code, agy CLI hoặc Offline Engine.
               </p>
             </div>
 
             {/* Visual Engine Pills */}
             <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-xl bg-[#D97706] text-white p-2.5 text-center shadow-sm">
+                <div className="font-mono font-bold text-[13px]">Claude</div>
+                <div className="text-[10.5px] opacity-90 mt-0.5">Đang hỗ trợ</div>
+              </div>
               <div className="rounded-xl bg-[#0071E3] text-white p-2.5 text-center shadow-sm">
                 <div className="font-mono font-bold text-[13px]">agy CLI</div>
                 <div className="text-[10.5px] opacity-90 mt-0.5">Đang hỗ trợ</div>
-              </div>
-              <div className="rounded-xl bg-white/80 dark:bg-zinc-900/80 border border-[#1D1D1F]/10 dark:border-white/10 p-2.5 text-center">
-                <div className="font-mono font-semibold text-[13px] text-[#1D1D1F] dark:text-zinc-200">Claude</div>
-                <div className="text-[10.5px] text-[#6E6E73] dark:text-zinc-400 flex items-center justify-center gap-1 mt-0.5">
-                  <Clock size={10} />
-                  <span>Sắp có</span>
-                </div>
               </div>
               <div className="rounded-xl bg-white/80 dark:bg-zinc-900/80 border border-[#1D1D1F]/10 dark:border-white/10 p-2.5 text-center">
                 <div className="font-mono font-semibold text-[13px] text-[#1D1D1F] dark:text-zinc-200">Codex</div>

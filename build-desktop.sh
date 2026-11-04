@@ -111,6 +111,59 @@ if [ "$1" = "--rebuild-backend" ]; then
   REBUILD_BACKEND="1"
 fi
 
+OS_NAME="$(uname -s)"
+
+if [ "$OS_NAME" = "Linux" ]; then
+  TARGET_TRIPLE="$(rustc -vV | sed -n 's|host: ||p')"
+  VENV_DIR="$DIR/backend/.venv"
+  if [ ! -d "$VENV_DIR" ]; then
+    python3 -m venv "$VENV_DIR"
+  fi
+  "$VENV_DIR/bin/pip" install --upgrade pip pyinstaller -r "$DIR/backend/requirements.txt"
+
+  echo "------------------------------------------------------------"
+  echo "Building Python FastAPI Sidecar for Linux ($TARGET_TRIPLE)..."
+  echo "------------------------------------------------------------"
+  (
+    cd "$DIR/backend"
+    "$VENV_DIR/bin/pyinstaller" --noconfirm --clean --onefile \
+      --name "layerzero-backend-$TARGET_TRIPLE" \
+      --distpath "$DIR/frontend/src-tauri/binaries" \
+      --workpath "$DIR/backend/build_pyinstaller_$TARGET_TRIPLE" \
+      --specpath "$DIR/backend/build_pyinstaller_$TARGET_TRIPLE" \
+      --add-data "$DIR/backend/schemas:schemas" \
+      --hidden-import "uvicorn.logging" \
+      --hidden-import "uvicorn.loops" \
+      --hidden-import "uvicorn.loops.auto" \
+      --hidden-import "uvicorn.protocols" \
+      --hidden-import "uvicorn.protocols.http" \
+      --hidden-import "uvicorn.protocols.http.auto" \
+      --hidden-import "uvicorn.protocols.websockets" \
+      --hidden-import "uvicorn.protocols.websockets.auto" \
+      --hidden-import "uvicorn.lifespan" \
+      --hidden-import "uvicorn.lifespan.on" \
+      --hidden-import "multipart" \
+      main.py
+  )
+  rm -rf "$DIR/backend/build_pyinstaller_$TARGET_TRIPLE"
+  chmod +x "$DIR/frontend/src-tauri/binaries/layerzero-backend-$TARGET_TRIPLE"
+
+  echo "============================================================"
+  echo "Building Tauri v2 Linux Bundles (.deb & .AppImage)..."
+  echo "============================================================"
+  (
+    cd "$DIR/frontend"
+    npm install
+    npx tauri build --bundles deb,appimage
+  )
+
+  echo ""
+  echo "✅ Linux Build Complete!"
+  echo "   • DEB      : $DIR/frontend/src-tauri/target/release/bundle/deb/"
+  echo "   • AppImage : $DIR/frontend/src-tauri/target/release/bundle/appimage/"
+  exit 0
+fi
+
 # 1. Build Apple Silicon (aarch64-apple-darwin)
 build_sidecar "aarch64-apple-darwin" "$DIR/backend/.venv" ""
 build_tauri_dmg "aarch64-apple-darwin" "LayerZero_2.0.0_Apple_Silicon_arm64.dmg" "LayerZero (Apple Silicon)"

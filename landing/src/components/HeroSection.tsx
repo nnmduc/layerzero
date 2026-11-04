@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import {
-  AppleLogo,
   ArrowDownRight,
   CheckCircle,
   Cpu,
   CubeTransparent,
+  DownloadSimple,
   Eye,
   Moon,
   Sparkle,
@@ -38,16 +38,16 @@ const APP_SCREENSHOT_TABS = [
     src: '/images/screenshot-app-ai-stream.png',
     alt: 'Tiến trình suy luận trực tiếp của agy AI bên trong LayerZero Studio',
     caption:
-      'Unleashed AI Mode: Kết nối trực tiếp gói AI cá nhân trên máy Mac để đọc sâu cấu hình XML/JSON và giải thích từng quyết định kỹ thuật.',
+      'Unleashed AI Mode: Kết nối trực tiếp gói AI cá nhân trên máy tính của bạn (macOS, Windows & Linux) để đọc sâu cấu hình XML/JSON và giải thích từng quyết định kỹ thuật.',
   },
   {
     id: 'dark-mode',
     label: 'Chế độ Tối',
     icon: Moon,
     src: '/images/screenshot-app-dark-mode.png',
-    alt: 'Giao diện Dark Mode của phần mềm LayerZero Studio trên macOS',
+    alt: 'Giao diện Dark Mode của phần mềm LayerZero Studio đa nền tảng',
     caption:
-      'Giao diện Dark Mode đồng bộ chuẩn macOS giúp làm việc dịu mắt trong các phiên tinh chỉnh mô hình ban đêm.',
+      'Giao diện Dark Mode đồng bộ đa nền tảng (macOS, Windows & Linux) giúp làm việc dịu mắt trong các phiên tinh chỉnh mô hình ban đêm.',
   },
 ];
 
@@ -70,7 +70,7 @@ export const HeroSection: React.FC = () => {
             >
               {/* Element 1: Eyebrow (1 of 3 allowed across the entire page) */}
               <p className="text-[11.5px] font-mono uppercase tracking-[0.18em] text-[#0071E3] dark:text-[#2997FF] font-semibold mb-4">
-                LAYERZERO STUDIO CHO MACOS
+                LAYERZERO STUDIO · MACOS · WINDOWS · LINUX
               </p>
 
               {/* Element 2: Headline (max 2 lines on desktop) */}
@@ -86,11 +86,11 @@ export const HeroSection: React.FC = () => {
               {/* Element 4: CTAs (1 Primary + 1 Secondary, single line labels) */}
               <div className="flex flex-wrap items-center gap-3.5">
                 <a
-                  href="#tai-ve-macos"
+                  href="#tai-ve"
                   className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-[#0071E3] hover:bg-[#0077ED] text-white text-[15px] font-semibold whitespace-nowrap shadow-sm active:scale-[0.98] transition-all"
                 >
-                  <AppleLogo size={18} weight="fill" />
-                  <span>Tải cho macOS</span>
+                  <DownloadSimple size={18} weight="bold" />
+                  <span>Tải cho macOS, Win & Linux</span>
                 </a>
                 <a
                   href="#cau-chuyen"
@@ -196,7 +196,7 @@ export const HeroSection: React.FC = () => {
                   Xuất file chuẩn & Mở thẳng Bambu Studio
                 </h2>
                 <p className="text-[13px] text-[#6E6E73] dark:text-zinc-400 leading-relaxed mt-0.5">
-                  Giữ nguyên màu sơn đa sắc, tự động gán Per-Object Settings và mở ngay trên macOS.
+                  Giữ nguyên màu sơn đa sắc, tự động gán Per-Object Settings và mở ngay trên macOS, Windows & Linux.
                 </p>
               </div>
             </div>

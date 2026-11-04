@@ -24,7 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Three.js WebGL Slicer Viewport (`Viewport3D.tsx`) with camera-attached headlamp lighting, back-face culled build plate for underneath `Z=0` inspection, interactive Amber laser cut plane, and 3 inspection modes (`Support`, `Surface`, `Under-Bed X-Ray`).
   - Collapsible Left Diagnostic Cards pane and Right 3-Column Settings Diff pane (`Default` vs `Author .3mf` vs `LayerZero Proposed`) with educational explanations.
   - Dynamic Island live agent status bar & expandable terminal drawer.
-- **Native macOS Desktop Application (`frontend/src-tauri/`)**:
-  - Tauri v2 desktop wrapper managing the compiled PyInstaller FastAPI sidecar process group lifecycle.
+- **Cross-Platform Native Desktop Application (`frontend/src-tauri/`)**:
+  - Tauri v2 desktop wrapper managing the compiled PyInstaller FastAPI sidecar lifecycle across **macOS** (`.dmg`), **Windows** (`.exe` NSIS & `.msi`), and **Linux** (`.AppImage` & `.deb`).
+  - Automated GitHub Actions release pipeline (`.github/workflows/release-desktop.yml`) publishing Linux and Windows installers directly to GitHub Releases.
 - **Product Landing Page (`landing/`)**:
   - Editorial landing page with interactive 3MF diagnostic simulators, problem-solving workbench, and educational slicer diff showcase.

@@ -306,7 +306,7 @@ export const App: React.FC = () => {
         openInBambu
           ? 'Đã mở trong Bambu Studio'
           : IS_DESKTOP
-          ? 'Đã lưu vào ~/Downloads & mở Finder'
+          ? 'Đã lưu vào ~/Downloads & mở thư mục chứa file'
           : 'Đã xuất file .3mf tối ưu',
         data.output_filename
       );

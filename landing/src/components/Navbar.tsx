@@ -1,5 +1,5 @@
 import React from 'react';
-import { AppleLogo, Moon, Sun } from '@phosphor-icons/react';
+import { DownloadSimple, GithubLogo, Moon, Sun } from '@phosphor-icons/react';
 
 interface NavbarProps {
   darkMode: boolean;
@@ -69,11 +69,21 @@ export const Navbar: React.FC<NavbarProps> = ({ darkMode, onToggleTheme }) => {
           </button>
 
           <a
-            href="#tai-ve-macos"
+            href="https://github.com/nnmduc/layerzero/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="GitHub Releases"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-[#1D1D1F] dark:text-zinc-200 bg-[#1D1D1F]/[0.05] dark:bg-white/[0.08] hover:bg-[#1D1D1F]/[0.1] dark:hover:bg-white/[0.14] active:scale-[0.98] transition-all"
+          >
+            <GithubLogo size={18} weight="fill" />
+          </a>
+
+          <a
+            href="#tai-ve"
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#0071E3] hover:bg-[#0077ED] text-white text-[13px] font-medium whitespace-nowrap shadow-sm active:scale-[0.98] transition-all"
           >
-            <AppleLogo size={15} weight="fill" />
-            <span>Tải cho macOS</span>
+            <DownloadSimple size={15} weight="bold" />
+            <span>Tải ứng dụng</span>
           </a>
         </div>
       </div>

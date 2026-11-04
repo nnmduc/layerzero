@@ -9,6 +9,11 @@ use tauri::{Manager, RunEvent};
 
 #[cfg(unix)]
 use std::os::unix::process::CommandExt;
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 struct SidecarState(Mutex<Option<Child>>);
 
@@ -20,44 +25,52 @@ fn is_port_in_use(port: u16) -> bool {
     .is_ok()
 }
 
+fn target_triple_suffixes() -> Vec<String> {
+    let arch = std::env::consts::ARCH;
+    let ext = std::env::consts::EXE_SUFFIX;
+    if cfg!(target_os = "macos") {
+        vec![format!("{}-apple-darwin{}", arch, ext)]
+    } else if cfg!(target_os = "windows") {
+        vec![
+            format!("{}-pc-windows-msvc{}", arch, ext),
+            format!("{}-windows{}", arch, ext),
+        ]
+    } else {
+        vec![
+            format!("{}-unknown-linux-gnu{}", arch, ext),
+            format!("{}-linux{}", arch, ext),
+        ]
+    }
+}
+
 fn find_sidecar_binary() -> Option<PathBuf> {
+    let ext = std::env::consts::EXE_SUFFIX;
+    let suffixes = target_triple_suffixes();
+
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
-            // 1. Inside macOS .app bundle (Contents/MacOS/layerzero-backend)
-            let bundled = exe_dir.join("layerzero-backend");
+            // 1. Inside bundled app (macOS Contents/MacOS/, Linux /usr/bin/, Windows install dir)
+            let bundled = exe_dir.join(format!("layerzero-backend{}", ext));
             if bundled.exists() {
                 return Some(bundled);
             }
             // 2. Next to binary with target triple suffix
-            let with_triple = exe_dir.join(format!(
-                "layerzero-backend-{}-{}",
-                std::env::consts::ARCH,
-                if cfg!(target_os = "macos") {
-                    "apple-darwin"
-                } else {
-                    std::env::consts::OS
+            for suffix in &suffixes {
+                let with_triple = exe_dir.join(format!("layerzero-backend-{}", suffix));
+                if with_triple.exists() {
+                    return Some(with_triple);
                 }
-            ));
-            if with_triple.exists() {
-                return Some(with_triple);
             }
         }
     }
 
     // 3. Fallback for `tauri dev`
-    let target_os = if cfg!(target_os = "macos") {
-        "apple-darwin"
-    } else {
-        std::env::consts::OS
-    };
     let binaries_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("binaries");
-    let dev_bin = binaries_dir.join(format!(
-        "layerzero-backend-{}-{}",
-        std::env::consts::ARCH,
-        target_os
-    ));
-    if dev_bin.exists() {
-        return Some(dev_bin);
+    for suffix in &suffixes {
+        let dev_bin = binaries_dir.join(format!("layerzero-backend-{}", suffix));
+        if dev_bin.exists() {
+            return Some(dev_bin);
+        }
     }
 
     let fallback_arm = binaries_dir.join("layerzero-backend-aarch64-apple-darwin");
@@ -69,12 +82,23 @@ fn find_sidecar_binary() -> Option<PathBuf> {
 }
 
 fn build_enriched_path() -> String {
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
     let current = std::env::var("PATH").unwrap_or_default();
-    format!(
-        "{}/.local/bin:{}/.cargo/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:{}",
-        home, home, current
-    )
+    #[cfg(windows)]
+    {
+        let home = std::env::var("USERPROFILE").unwrap_or_else(|_| ".".to_string());
+        format!(
+            "{}\\.local\\bin;{}\\.cargo\\bin;{}",
+            home, home, current
+        )
+    }
+    #[cfg(not(windows))]
+    {
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+        format!(
+            "{}/.local/bin:{}/.cargo/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:{}",
+            home, home, current
+        )
+    }
 }
 
 fn kill_sidecar(state: &SidecarState) {
@@ -86,6 +110,14 @@ fn kill_sidecar(state: &SidecarState) {
                 // Terminate entire process group (PyInstaller bootloader + Uvicorn child worker)
                 let _ = Command::new("kill")
                     .args(["-TERM", &format!("-{}", pid)])
+                    .status();
+            }
+            #[cfg(windows)]
+            {
+                let pid = child.id();
+                let _ = Command::new("taskkill")
+                    .args(["/F", "/T", "/PID", &pid.to_string()])
+                    .creation_flags(CREATE_NO_WINDOW)
                     .status();
             }
             let _ = child.kill();
@@ -108,6 +140,9 @@ fn main() {
 
                     #[cfg(unix)]
                     cmd.process_group(0);
+
+                    #[cfg(windows)]
+                    cmd.creation_flags(CREATE_NO_WINDOW);
 
                     if let Ok(child) = cmd.spawn() {
                         let state = app.state::<SidecarState>();

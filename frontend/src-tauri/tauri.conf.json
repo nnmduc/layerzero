@@ -27,7 +27,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["app", "dmg"],
+    "targets": "all",
     "externalBin": [
       "binaries/layerzero-backend"
     ],

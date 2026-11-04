@@ -80,7 +80,17 @@ export const ContactSection: React.FC = () => {
             </span>
             <span>· Hỗ trợ agy CLI (Google Antigravity) · Sắp hỗ trợ Claude & Codex.</span>
           </div>
-          <div>Thiết kế cho macOS.</div>
+          <div>
+            Hỗ trợ macOS, Windows & Linux ·{' '}
+            <a
+              href="https://github.com/nnmduc/layerzero/releases/latest"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#0071E3] dark:text-[#2997FF] hover:underline font-medium"
+            >
+              GitHub Releases
+            </a>
+          </div>
         </footer>
       </div>
     </section>

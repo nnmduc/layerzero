@@ -7,6 +7,7 @@
 **Universal `.3mf` AI Printability & Aesthetics Optimizer for 3D Printing**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-0071E3.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-0071E3.svg)](https://github.com/nnmduc/layerzero/releases/latest)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-3776AB.svg?logo=python&logoColor=white)](backend/)
 [![React 18 + Three.js](https://img.shields.io/badge/Frontend-React%2018%20%2B%20Three.js-61DAFB.svg?logo=react&logoColor=black)](frontend/)
 [![Tauri v2](https://img.shields.io/badge/Desktop-Tauri%20v2-FFC131.svg?logo=tauri&logoColor=black)](frontend/src-tauri/)
@@ -14,7 +15,7 @@
 
 *Dissect any downloaded `.3mf` project using vectorized 3D mesh mathematics and your local AI agent to prevent mid-print failures, eliminate surface artifacts, and learn slicer engineering by doing.*
 
-[Website](https://layerzero.io.vn) · [English](#overview) · [Tiếng Việt](#giới-thiệu-tiếng-việt) · [Architecture](docs/ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md)
+[Website](https://layerzero.io.vn) · [Downloads (GitHub Releases)](https://github.com/nnmduc/layerzero/releases/latest) · [English](#overview) · [Tiếng Việt](#giới-thiệu-tiếng-việt) · [Architecture](docs/ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -140,9 +141,27 @@ layerzero/
 │   └── src/                  # Interactive 3MF simulators, bento grid & diff showcase
 ├── docs/
 │   └── ARCHITECTURE.md       # Deep-dive technical documentation
+├── .github/workflows/
+│   ├── ci.yml                # Automated Backend + Frontend + Landing CI checks
+│   └── release-desktop.yml   # Automated Linux (.AppImage/.deb) & Windows (.exe/.msi) Release Builder
 ├── start.sh                  # 1-command local development launcher (Backend + Frontend)
-└── build-desktop.sh          # macOS PyInstaller Sidecar + Tauri .app/.dmg builder
+└── build-desktop.sh          # Cross-platform PyInstaller Sidecar + Tauri Desktop builder (macOS & Linux)
 ```
+
+---
+
+## Downloads (Pre-built Desktop Binaries)
+
+All official desktop installers are available on [**GitHub Releases**](https://github.com/nnmduc/layerzero/releases/latest) and [layerzero.io.vn](https://layerzero.io.vn):
+
+| Platform | Architecture | Format | Direct Download |
+| :--- | :--- | :--- | :--- |
+| **macOS** | Apple Silicon (`M1–M4`) | `.dmg` (Signed) | [`LayerZero_2.0.0_Apple_Silicon_arm64.dmg`](https://dl.layerzero.io.vn/LayerZero_2.0.0_Apple_Silicon_arm64.dmg) |
+| **macOS** | Intel (`x86_64`) | `.dmg` (Signed) | [`LayerZero_2.0.0_Intel_x64.dmg`](https://dl.layerzero.io.vn/LayerZero_2.0.0_Intel_x64.dmg) |
+| **Windows** | `x86_64` (Win 10/11) | `.exe` (NSIS Setup) | [`LayerZero_2.0.0_Windows_x64-setup.exe`](https://github.com/nnmduc/layerzero/releases/latest/download/LayerZero_2.0.0_Windows_x64-setup.exe) |
+| **Windows** | `x86_64` (Win 10/11) | `.msi` (MSI Installer) | [`LayerZero_2.0.0_Windows_x64.msi`](https://github.com/nnmduc/layerzero/releases/latest/download/LayerZero_2.0.0_Windows_x64.msi) |
+| **Linux** | `x86_64` (All Distros) | `.AppImage` | [`LayerZero_2.0.0_Linux_x64.AppImage`](https://github.com/nnmduc/layerzero/releases/latest/download/LayerZero_2.0.0_Linux_x64.AppImage) |
+| **Linux** | `amd64` (Ubuntu/Debian) | `.deb` | [`LayerZero_2.0.0_Linux_amd64.deb`](https://github.com/nnmduc/layerzero/releases/latest/download/LayerZero_2.0.0_Linux_amd64.deb) |
 
 ---
 
@@ -200,9 +219,9 @@ npm run dev
 
 ## Building the Native Desktop App (Tauri v2)
 
-LayerZero packages the Python FastAPI backend as a standalone **PyInstaller single-file sidecar binary** embedded inside a native **Tauri v2** application.
+LayerZero packages the Python FastAPI backend as a standalone **PyInstaller single-file sidecar binary** embedded inside a native **Tauri v2** application across **macOS**, **Linux**, and **Windows**.
 
-### macOS Build (`.app` & `.dmg`)
+### 1. macOS Build (`.app` & `.dmg`)
 
 ```bash
 # Ad-hoc signed local build (works out of the box for all contributors):
@@ -214,6 +233,54 @@ APPLE_SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" ./build-de
 
 The resulting `.dmg` installer is generated at:
 `frontend/src-tauri/target/release/bundle/dmg/LayerZero_2.0.0_Apple_Silicon_arm64.dmg`
+
+### 2. Linux Build (`.deb` & `.AppImage`)
+
+Install Tauri v2 system prerequisites (Ubuntu / Debian):
+
+```bash
+sudo apt-get update
+sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
+  libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf fuse libfuse2
+```
+
+Then run the unified build script:
+
+```bash
+./build-desktop.sh --rebuild-backend
+```
+
+Output bundles are generated in:
+- `frontend/src-tauri/target/release/bundle/deb/`
+- `frontend/src-tauri/target/release/bundle/appimage/`
+
+### 3. Windows Build (`.exe` NSIS & `.msi`)
+
+In PowerShell (with Python 3.12+, Node.js 18+, and Rust MSVC toolchain installed):
+
+```powershell
+cd backend
+python -m pip install --upgrade pip pyinstaller -r requirements.txt
+pyinstaller --noconfirm --clean --onefile `
+  --name "layerzero-backend-x86_64-pc-windows-msvc" `
+  --distpath "../frontend/src-tauri/binaries" `
+  --add-data "schemas;schemas" `
+  --hidden-import "uvicorn.logging" `
+  --hidden-import "uvicorn.loops.auto" `
+  --hidden-import "uvicorn.protocols.http.auto" `
+  --hidden-import "uvicorn.protocols.websockets.auto" `
+  --hidden-import "uvicorn.lifespan.on" `
+  --hidden-import "multipart" `
+  main.py
+
+cd ../frontend
+npm ci
+npx tauri build --bundles nsis,msi
+```
+
+### 4. Automated GitHub Actions Build & Release
+
+Every push to the `main` branch (or `v*` tag) triggers [`.github/workflows/release-desktop.yml`](.github/workflows/release-desktop.yml), which automatically compiles the Python sidecar and Tauri v2 installers for **Linux** (`.AppImage`, `.deb`) and **Windows** (`.exe`, `.msi`) and publishes them to [**GitHub Releases**](https://github.com/nnmduc/layerzero/releases/latest).
 
 ---
 

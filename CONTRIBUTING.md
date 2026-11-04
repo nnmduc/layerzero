@@ -98,10 +98,11 @@ Before opening a Pull Request, please verify that all components compile and pas
   ```
 
 ### Rust / Tauri Desktop (`frontend/src-tauri/`)
-- If modifying `src-tauri/`, ensure `cargo check` passes:
+- If modifying `src-tauri/`, ensure `cargo check` passes on your platform (macOS, Linux, or Windows):
   ```bash
   cd frontend/src-tauri && cargo check
   ```
+- Desktop bundles for **Linux** (`.AppImage`, `.deb`) and **Windows** (`.exe`, `.msi`) are automatically built and published to GitHub Releases via [`.github/workflows/release-desktop.yml`](.github/workflows/release-desktop.yml) on pushes to `main`.
 
 ---
 

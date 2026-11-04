@@ -319,7 +319,7 @@ export const FeaturesBento: React.FC = () => {
               </div>
               <div className="flex items-center gap-2 text-[#1D1D1F] dark:text-zinc-200">
                 <Check size={15} weight="bold" className="text-[#0071E3]" />
-                <span>Đóng gói độc lập cho macOS (M1-M4 & Intel)</span>
+                <span>Đóng gói Native cho macOS, Windows & Linux</span>
               </div>
             </div>
           </motion.div>

@@ -96,8 +96,17 @@ When `FLATTEN_BOTTOM` is approved with cut height $\Delta z$ (e.g., $0.80\text{ 
 
 ---
 
-## 5. Tauri v2 Desktop & Python Sidecar Lifecycle (`frontend/src-tauri/src/main.rs`)
+## 5. Tauri v2 Desktop & Cross-Platform Python Sidecar Lifecycle (`frontend/src-tauri/src/main.rs`)
 
-1. On startup, the Rust binary checks if TCP port `8000` is already bound (`is_port_in_use(8000)`).
-2. If not bound, it locates the bundled PyInstaller binary (`Contents/MacOS/layerzero-backend` in production `.app` bundles, or `src-tauri/binaries/layerzero-backend-<arch>-<os>` in dev mode) and spawns it in its own Unix process group (`cmd.process_group(0)`).
-3. When the user quits the desktop app (`RunEvent::Exit`), `kill_sidecar` sends `SIGTERM` to the entire process group (`-pid`), ensuring both the PyInstaller bootloader and child Uvicorn worker processes exit cleanly without leaving orphan processes on port `8000`.
+LayerZero Studio supports **macOS** (`.app` / `.dmg`), **Windows** (`.exe` NSIS / `.msi`), and **Linux** (`.AppImage` / `.deb`):
+
+1. **Startup & Sidecar Resolution**:
+   - On startup, the Rust binary checks if TCP port `8000` is already bound (`is_port_in_use(8000)`).
+   - If not bound, it locates the bundled PyInstaller binary (`layerzero-backend` on macOS/Linux or `layerzero-backend.exe` on Windows next to the executable in production bundles, or `src-tauri/binaries/layerzero-backend-<target-triple>` in `tauri dev` mode).
+   - On Unix (macOS & Linux), it spawns the sidecar in its own process group (`cmd.process_group(0)`). On Windows, it spawns the sidecar with `CREATE_NO_WINDOW` (`0x08000000`) so no console window flashes on screen.
+2. **OS-Aware Storage & Bambu Studio Integration (`backend/main.py` & `backend/profiler.py`)**:
+   - **Session Storage**: `~/Library/Application Support/LayerZero/storage` (macOS), `%LOCALAPPDATA%\LayerZero\storage` (Windows), or `~/.local/share/layerzero/storage` (Linux).
+   - **Bambu Studio System Profiles**: Automatically resolves `BBL` system JSON profiles across macOS (`~/Library/Application Support/BambuStudio`), Windows (`%APPDATA%\BambuStudio`), and Linux (`~/.config/BambuStudio` or Flatpak `~/.var/app/com.bambulab.BambuStudio`).
+   - **1-Click Launch & File Manager Reveal**: Uses `open -a BambuStudio` / `open -R` on macOS, `os.startfile` / `explorer /select` on Windows, and `xdg-open` on Linux.
+3. **Clean Process Tree Termination (`kill_sidecar`)**:
+   - When the user quits the desktop app (`RunEvent::Exit`), `kill_sidecar` sends `SIGTERM` to the entire Unix process group (`-pid`) on macOS/Linux or invokes `taskkill /F /T /PID <pid>` on Windows, ensuring both the PyInstaller bootloader and child Uvicorn worker processes exit cleanly without leaving orphan processes on port `8000`.

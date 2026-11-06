@@ -39,7 +39,8 @@ When downloading `.3mf` files from MakerWorld, Printables, or Thingiverse, newco
 **LayerZero Studio** là công cụ mã nguồn mở kết hợp giữa **Toán học Hình thái 3D (Vectorized NumPy)** và **Headless AI Agent (Claude Code / `agy`)** giúp người dùng máy in 3D (đặc biệt là hệ sinh thái Bambu Studio / PrusaSlicer / OrcaSlicer):
 1. **Giải phẫu trực quan file `.3mf`**: Đọc trực tiếp lưới tam giác 3D, ma trận biến đổi 12-float, màu sơn đa sắc AMS (`paint_color`), vùng tô Support (`paint_supports`) và cấu hình `Metadata/*.config`.
 2. **Tối ưu không phá hủy (Non-Destructive Patching)**: Tự động vạt phẳng đáy khớp cầu siêu nhỏ (`Z = 0.80mm`), bọc đài đỡ Support Enforcer 360° ở gầm, gia cố riêng ốc vít bằng Per-Object Overrides, bật Ironing cho mặt phẳng ngang và Scarf Seam cho thân trụ tròn — trong khi **giữ nguyên 100% bảng màu đa sắc AMS và tháp Prime Tower**.
-3. **Vừa in vừa học (Learn by Diff)**: Đối chiếu trực quan 3 cột (**Mặc định Hệ thống** vs **File Tác giả** vs **LayerZero Đề xuất**) kèm giải thích nguyên lý cơ khí & nhiệt động học rõ ràng bằng tiếng Việt.
+3. **Hiểu đúng vật liệu & máy in**: Hỗ trợ **Bambu PLA Lite, PLA Basic và PETG HF** trên **A1, A1 mini, P1S và X1C**. LayerZero tự chọn đúng preset Bambu cho từng máy, đọc loại mặt bàn trong file (Textured PEI, Smooth PEI, Cool Plate...) và chỉ đổi các slot AMS thân mẫu — slot Support giữ nguyên.
+4. **Vừa in vừa học (Learn by Diff)**: Đối chiếu trực quan 3 cột (**Mặc định Hệ thống** vs **File Tác giả** vs **LayerZero Đề xuất**) kèm giải thích nguyên lý cơ khí & nhiệt động học rõ ràng bằng tiếng Việt.
 
 ---
 
@@ -103,14 +104,33 @@ For a deep dive into the coordinate math, XML namespaces, and data structures, r
 | :--- | :--- | :--- |
 | `FLATTEN_BOTTOM` | Safety | Clamps vertices below `min_z + dz` (default `0.80mm`) and shifts item/assembly Z transforms so pinpoint ball bases gain +300% Layer 1 bed contact. |
 | `REINFORCE_SUPPORTS` | Safety | Strips accidental support blockers (`paint_supports="8"`) below `Z = 8mm` and paints a 360° Support Enforcer cradle (`paint_supports="4"`) on steep base overhangs. |
-| `OPTIMIZE_SCREW` | Safety | Injects per-object overrides on screw/fastener objects: `5mm` brim (`0.04mm` gap), `6` wall loops, `100%` concentric infill, and `35 mm/s` outer wall speed. |
-| `ROTATE_YAW` | Safety | Tunes bed-slinger Y-axis kinematics (`4000 mm/s²` acceleration, `0.8mm` Normal Lift Z-Hop, disabled infill retraction reduction). |
+| `OPTIMIZE_SCREW` | Safety | Injects per-object overrides on screw/fastener objects: `5mm` brim (`0.04mm` gap on PLA, `0.1mm` on PETG), `6` wall loops, `100%` concentric infill, and `35 mm/s` outer wall speed. |
+| `ROTATE_YAW` | Safety | Tunes bed-slinger Y-axis kinematics (`4000 mm/s²` acceleration, `0.8mm` Normal Lift Z-Hop on PLA / `0.4mm` Spiral Lift on PETG, disabled infill retraction reduction). |
+| `SWITCH_BED_PLATE` | Safety | Moves the project to Textured PEI when Bambu's profile marks the current plate unsupported for the filament (e.g. PETG on Cool Plate). |
+| `MATERIAL_ADVICE` | Safety | Guidance the slicer cannot apply (dry PETG, glue on Smooth PEI, open the door for PLA on P1S/X1C). Shown without a toggle. |
 | `ADAPTIVE_LAYER_DOME` | Aesthetics | Sets `0.16mm` optimal layer height and per-object `concentric` top surface pattern on domed shells (`0.68 <= normal_z < 0.985`). |
-| `IRONING_FLAT_TOP` | Aesthetics | Enables per-object `topmost` ironing (`12%` flow, `30 mm/s` speed, `0.15mm` spacing) strictly on objects with large flat horizontal tops (`normal_z >= 0.992`). |
+| `IRONING_FLAT_TOP` | Aesthetics | Enables per-object `topmost` ironing (`12%` flow / `30 mm/s` on PLA, `10%` / `20 mm/s` on PETG, `0.15mm` spacing) strictly on objects with large flat horizontal tops (`normal_z >= 0.992`). |
 | `SCARF_SEAM_CYLINDER` | Aesthetics | Enables per-object `external` Scarf Joint Seam (`seam_slope_type`) and global `G2/G3` Arc Fitting on high-symmetry cylindrical parts. |
 | `FUZZY_SKIN` | Aesthetics | Optional per-object outside matte texture (`0.3mm` point distance, `0.2mm` thickness; disabled by default). |
 
-### 4. Interactive 3-Pane Studio & Slicer Viewport (`frontend/`)
+### 4. Filament & Printer Awareness (`backend/filament_profiles.py`)
+Supported combinations: **Bambu PLA Lite, PLA Basic and PETG HF** on **Bambu Lab A1, A1 mini, P1S and X1C** (0.4 mm nozzle).
+
+- **Right preset per printer**: picks the Bambu Studio preset whose `compatible_printers` includes the selected printer (e.g. `Bambu PLA Basic @BBL P1S 0.4 nozzle`, `Bambu PLA Lite @BBL A1M`) and the matching process preset, instead of always using `@BBL A1`. Switching printer also takes the new machine's bed size.
+- **Vendor values first**: temperatures, fan, flow ratio and volumetric speed come from Bambu's own profile for that printer and filament. Example: PLA wants a 65 °C textured plate on the open A1 but 55 °C on the enclosed P1S/X1C; PETG HF wants 70 °C, 30–50 % fan and no fan for the first 3 layers.
+- **Plate-aware**: reads `curr_bed_type` and patches the matching temperature key (Textured PEI, Smooth PEI / High Temp, Cool Plate, Engineering, SuperTack).
+- **Material rules on top** (`MATERIAL_POLICIES`): PETG gets a support top gap ≥ `0.2 mm`, a looser support interface, a brim gap ≥ `0.1 mm` and Spiral Lift instead of a tall Normal Lift. PLA Lite has weaker layer adhesion than PLA Basic, so functional parts get +5 °C nozzle. These floors are enforced again at export, so AI-proposed values can't break them.
+- **AMS slots kept safe** (`backend/slicer_config_merge.py`): only slots in the same material family as the main body are retargeted. Support and interface slots (e.g. *Support for PLA/PETG*) keep the author's settings. Files that mix PLA and PETG bodies get a per-slot picker.
+
+| Vendor value (A1, 0.4 mm) | PLA Lite | PLA Basic | PETG HF |
+| :--- | :--- | :--- | :--- |
+| Nozzle (first / other layers) | 220 / 220 °C | 220 / 220 °C | 230 / 240 °C |
+| Textured PEI plate | 65 °C | 65 °C | 70 °C |
+| Part fan | 60–80 % | 60–80 % | 30–50 %, off for 3 layers |
+| Flow ratio | 0.98 | 0.98 | 0.94 |
+| Max volumetric speed | 16 mm³/s | 21 mm³/s | 18 mm³/s |
+
+### 5. Interactive 3-Pane Studio & Slicer Viewport (`frontend/`)
 - **Bambu-Style Back-Face Culled Build Plate**: Orbit 360° underneath the build plate (`Z < 0`) to inspect first-layer emerald contact footprints and painted support cradles unobstructed.
 - **Interactive Flatten Laser Plane**: Drag the flatten slider (`0.2mm – 2.0mm`) and watch the amber laser cut plane move in real time on the 3D mesh.
 - **Multi-Color AMS Preview**: Renders multi-color painted triangles directly from `.3mf` filament palettes.
@@ -125,6 +145,10 @@ layerzero/
 │   ├── main.py               # FastAPI REST + SSE endpoints & session lifecycle
 │   ├── profiler.py           # Vectorized NumPy 3D mesh & surface topology profiler
 │   ├── patcher.py            # Non-destructive .3mf XML/ZIP patcher & rule synthesis
+│   ├── filament_profiles.py  # Printer/filament preset resolution, plate types & material policies
+│   ├── slicer_config_merge.py # Per-AMS-slot merge of vendor baselines into project_settings
+│   ├── material_advice_cards.py # PLA / PLA Lite / PETG diagnostic & advice cards
+│   ├── tests/                # unittest suite (run: .venv/bin/python -m unittest discover -s tests)
 │   ├── ai_runner.py          # Unified Multi-CLI runner (Claude Code & agy)
 │   ├── agy_runner.py         # Headless `agy` CLI compatibility wrapper
 │   ├── requirements.txt      # Python dependencies
@@ -135,7 +159,8 @@ layerzero/
 │   │   ├── App.tsx           # 3-pane Studio workbench, SSE client & state management
 │   │   ├── types.ts          # Shared TypeScript interfaces for telemetry & audits
 │   │   └── components/
-│   │       └── Viewport3D.tsx # Three.js WebGL 3D build plate & mesh inspector
+│   │       ├── Viewport3D.tsx # Three.js WebGL 3D build plate & mesh inspector
+│   │       └── FilamentSlotPanel.tsx # Resolved preset, plate type & AMS slot mapping
 │   └── src-tauri/            # Tauri v2 Native Desktop Wrapper (Rust)
 │       ├── src/main.rs       # Sidecar process manager & port health check
 │       ├── Cargo.toml        # Rust crate manifest
@@ -159,12 +184,12 @@ All official desktop installers are available on [**GitHub Releases**](https://g
 
 | Platform | Architecture | Format | Direct Download |
 | :--- | :--- | :--- | :--- |
-| **macOS** | Apple Silicon (`M1–M4`) | `.dmg` (Signed) | [`LayerZero_2.0.0_Apple_Silicon_arm64.dmg`](https://dl.layerzero.io.vn/LayerZero_2.0.0_Apple_Silicon_arm64.dmg) |
-| **macOS** | Intel (`x86_64`) | `.dmg` (Signed) | [`LayerZero_2.0.0_Intel_x64.dmg`](https://dl.layerzero.io.vn/LayerZero_2.0.0_Intel_x64.dmg) |
-| **Windows** | `x86_64` (Win 10/11) | `.exe` (NSIS Setup) | [`LayerZero_2.0.0_Windows_x64-setup.exe`](https://github.com/nnmduc/layerzero/releases/latest/download/LayerZero_2.0.0_Windows_x64-setup.exe) |
-| **Windows** | `x86_64` (Win 10/11) | `.msi` (MSI Installer) | [`LayerZero_2.0.0_Windows_x64.msi`](https://github.com/nnmduc/layerzero/releases/latest/download/LayerZero_2.0.0_Windows_x64.msi) |
-| **Linux** | `x86_64` (All Distros) | `.AppImage` | [`LayerZero_2.0.0_Linux_x64.AppImage`](https://github.com/nnmduc/layerzero/releases/latest/download/LayerZero_2.0.0_Linux_x64.AppImage) |
-| **Linux** | `amd64` (Ubuntu/Debian) | `.deb` | [`LayerZero_2.0.0_Linux_amd64.deb`](https://github.com/nnmduc/layerzero/releases/latest/download/LayerZero_2.0.0_Linux_amd64.deb) |
+| **macOS** | Apple Silicon (`M1–M4`) | `.dmg` (Signed) | [`LayerZero_2.2.0_Apple_Silicon_arm64.dmg`](https://dl.layerzero.io.vn/LayerZero_2.2.0_Apple_Silicon_arm64.dmg) |
+| **macOS** | Intel (`x86_64`) | `.dmg` (Signed) | [`LayerZero_2.2.0_Intel_x64.dmg`](https://dl.layerzero.io.vn/LayerZero_2.2.0_Intel_x64.dmg) |
+| **Windows** | `x86_64` (Win 10/11) | `.exe` (NSIS Setup) | [`LayerZero_2.2.0_Windows_x64-setup.exe`](https://github.com/nnmduc/layerzero/releases/latest/download/LayerZero_2.2.0_Windows_x64-setup.exe) |
+| **Windows** | `x86_64` (Win 10/11) | `.msi` (MSI Installer) | [`LayerZero_2.2.0_Windows_x64.msi`](https://github.com/nnmduc/layerzero/releases/latest/download/LayerZero_2.2.0_Windows_x64.msi) |
+| **Linux** | `x86_64` (All Distros) | `.AppImage` | [`LayerZero_2.2.0_Linux_x64.AppImage`](https://github.com/nnmduc/layerzero/releases/latest/download/LayerZero_2.2.0_Linux_x64.AppImage) |
+| **Linux** | `amd64` (Ubuntu/Debian) | `.deb` | [`LayerZero_2.2.0_Linux_amd64.deb`](https://github.com/nnmduc/layerzero/releases/latest/download/LayerZero_2.2.0_Linux_amd64.deb) |
 
 ---
 
@@ -235,7 +260,7 @@ APPLE_SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" ./build-de
 ```
 
 The resulting `.dmg` installer is generated at:
-`frontend/src-tauri/target/release/bundle/dmg/LayerZero_2.0.0_Apple_Silicon_arm64.dmg`
+`frontend/src-tauri/target/release/bundle/dmg/LayerZero_2.2.0_Apple_Silicon_arm64.dmg`
 
 ### 2. Linux Build (`.deb` & `.AppImage`)
 
@@ -291,13 +316,15 @@ Every push to the `main` branch (or `v*` tag) triggers [`.github/workflows/relea
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/api/health` | Health check returning service status and version (`2.0.0`). |
+| `GET` | `/api/health` | Health check returning service status and version (`2.2.0`). |
+| `GET` | `/api/presets` | Printer and filament choices, with the exact Bambu preset each printer + filament pair resolves to. |
+| `POST` | `/api/baseline` | Recomputes the rule-engine audit and `material_context` after the printer, filament or slot mapping changes. |
 | `GET` | `/api/agent-engines` | Returns available AI CLI engines (`claude`, `agy`, `engine`) and active multi-CLI status. |
 | `GET` | `/api/samples` | Lists up to 8 sample `.3mf` files in `~/Downloads` for 1-click testing. |
 | `POST` | `/api/upload` | Uploads a `.3mf` file, extracts 3D mesh buffers & morphology telemetry, and synthesizes baseline audit cards. |
 | `POST` | `/api/load-local` | Loads a local `.3mf` file by path and returns 3D telemetry + baseline audit. |
 | `GET` | `/api/analyze/{session_id}` | Streams real-time AI analysis steps (`log`, `status`, `complete`) via `text/event-stream` (SSE). Query param `agent=claude|agy|engine|auto`. |
-| `POST` | `/api/apply` | Applies user-approved geometry patches & slicer settings to generate `<name>_LayerZero_Optimized.3mf`. |
+| `POST` | `/api/apply` | Applies user-approved geometry patches & slicer settings to generate `<name>_LayerZero_Optimized.3mf`. Optional `slot_filaments` picks a filament per AMS slot (`null` keeps the author's slot). |
 | `GET` | `/api/download/{session_id}` | Downloads the optimized `.3mf` archive for the active session. |
 
 ---

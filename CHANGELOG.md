@@ -5,6 +5,24 @@ All notable changes to **LayerZero Studio** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-11-06
+
+### Added
+- **Filament support for Bambu PLA Lite, PLA Basic and PETG HF** on **A1, A1 mini, P1S and X1C**:
+  - New `backend/filament_profiles.py` resolves the exact Bambu Studio preset for each printer + filament pair (e.g. `Bambu PLA Basic @BBL P1S 0.4 nozzle`, `Bambu PLA Lite @BBL A1M`) and the matching process preset, instead of always using `@BBL A1`.
+  - Material policies on top of vendor values: PETG uses a support top gap of at least 0.2 mm, a looser interface, a brim gap of at least 0.1 mm, Spiral Lift Z-hop and gentler ironing. PLA Lite raises the nozzle by 5 °C for functional parts because of its weaker layer adhesion.
+  - Plate-aware bed temperature: reads `curr_bed_type` and proposes the vendor value for that plate (Textured PEI, Smooth PEI, Cool Plate, Engineering, SuperTack).
+  - New cards: `SWITCH_BED_PLATE` (e.g. PETG on Cool Plate) and `MATERIAL_ADVICE` (dry PETG, glue on Smooth PEI, open the door for PLA on P1S/X1C, material mismatch with the author's file).
+  - New endpoints `GET /api/presets` and `POST /api/baseline`; `POST /api/apply` accepts `slot_filaments` for per-slot choices.
+  - Studio: printer list gains X1C, the filament list is resolved per printer, recommendations refresh when the printer or filament changes, and a new panel shows the resolved preset, plate and AMS slot mapping (editable when a file mixes PLA and PETG bodies).
+  - `unittest` suite in `backend/tests/` (also run in CI).
+
+### Fixed
+- Multi-filament files no longer get every AMS slot overwritten with the selected filament. Support/interface slots and other materials keep the author's settings.
+- Choosing A1 mini or P1S no longer writes A1-only filament and process presets, and switching printer now takes the new machine's bed size.
+- Proposals that were hardcoded for PLA (65 °C textured plate, 0.14 mm support gap, zero brim gap, forced Normal Lift, 100 % overhang fan) now follow the selected material and printer. AI-proposed values are checked against the same material floors at export.
+- Vendor profiles are parsed once per process instead of on every request.
+
 ## [2.1.0] - 2026-11-04
 
 ### Fixed & Improved

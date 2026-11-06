@@ -26,8 +26,10 @@ jobs:
           pip install -r requirements.txt
       - name: Compile & Verify Backend Modules
         run: |
-          python -m py_compile main.py profiler.py patcher.py agy_runner.py
+          python -m py_compile main.py profiler.py patcher.py agy_runner.py filament_profiles.py material_advice_cards.py slicer_config_merge.py
           python -c "import main, profiler, patcher, agy_runner; print('Backend modules imported successfully.')"
+      - name: Unit Tests (filament support; vendor-profile tests skip without Bambu Studio)
+        run: python -m unittest discover -s tests -v
 
   frontend:
     name: Studio Frontend Build

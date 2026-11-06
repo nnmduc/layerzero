@@ -88,6 +88,7 @@ Before opening a Pull Request, please verify that all components compile and pas
   ```bash
   cd backend
   ./.venv/bin/python -m py_compile main.py profiler.py patcher.py agy_runner.py
+  ./.venv/bin/python -m unittest discover -s tests -v
   ```
 
 ### TypeScript Frontends (`frontend/` & `landing/`)

@@ -79,11 +79,23 @@ Additionally, vertices at $z_{\text{rel}} \le 0.24\text{ mm}$ are highlighted in
 
 ## 3. Non-Destructive `.3mf` Patching (`backend/patcher.py`)
 
-### 3.1 Multi-Color AMS Preservation
+### 3.1 Multi-Color AMS Preservation & Per-Slot Filament Merge (`backend/slicer_config_merge.py`)
 
-When merging system baseline profiles (`0.16mm Optimal @BBL A1`) into `Metadata/project_settings.config`, `patcher.py` protects `PRESERVE_ORIG_KEYS` (including `filament_colour`, `flush_volumes_matrix`, `enable_prime_tower`, `filament_map`, and `printable_area`). For per-filament array settings (e.g., `z_hop`, `overhang_fan_speed`, `slow_down_layer_time`), scalar values are broadcast to match `num_filaments` so multi-slot AMS configurations never lose extruder alignment.
+`build_patched_config()` merges vendor baselines into `Metadata/project_settings.config` in two passes:
 
-### 3.2 Direct Mesh Clamping (`FLATTEN_BOTTOM`)
+1. **Machine + process keys** come from the printer preset and the process preset resolved for that printer (e.g. `0.16mm Optimal @BBL X1C` for a P1S). `PRESERVE_ORIG_KEYS` (`filament_colour`, `flush_volumes_matrix`, `enable_prime_tower`, `filament_map`, `curr_bed_type`, ...) are never wiped. When the printer differs from the author's `printer_settings_id`, bed geometry (`printable_area`, `printable_height`, `bed_exclude_area`) is taken from the new machine.
+2. **Filament keys are written per AMS slot.** `plan_slot_filaments()` decides which slots are retargeted: by default only slots in the same material group as the main body (PLA and PLA Lite form one group). Support and interface slots and other materials keep the author's values, so a PLA body with a *Support for PLA/PETG* interface is never rewritten to PLA temperatures. Each retargeted slot takes values from its own resolved vendor preset, and `filament_settings_id` is updated only for those slots.
+
+Later edits go through `set_filament_key()`, which writes only to the retargeted slots for per-filament keys. Per-extruder-variant lists (e.g. X1C's 2-entry lists for one slot) are rewritten only when every slot is retargeted.
+
+### 3.2 Printer, Filament & Plate Resolution (`backend/filament_profiles.py`)
+
+- `resolve_filament_preset(printer, "PLA Basic")` returns the shortest instantiable preset named `Bambu PLA Basic @...` whose `compatible_printers` includes the printer. If Bambu Studio's profiles are missing, it falls back to a static suffix per printer.
+- `bed_type_of()` maps `curr_bed_type` (`Textured PEI Plate`, `High Temp Plate`, `Cool Plate`, `Engineering Plate`, `Supertack Plate`) to the vendor temperature key prefix. A vendor value of `0` means the plate is unsupported for that filament, which raises a `SWITCH_BED_PLATE` card.
+- `MATERIAL_POLICIES` holds the material deltas on top of vendor values (support Z gap, interface spacing, brim gap, Z-hop type, ironing flow/speed, overhang fan, weak layer adhesion). `patcher.guard_material_value()` enforces the floors again at export, so values from the AI agent cannot break them.
+- `material_advice_cards.py` adds cards the slicer cannot apply (dry PETG, glue on Smooth PEI, open the door for PLA on enclosed printers, material mismatch with the author's file).
+
+### 3.3 Direct Mesh Clamping (`FLATTEN_BOTTOM`)
 
 When `FLATTEN_BOTTOM` is approved with cut height $\Delta z$ (e.g., $0.80\text{ mm}$):
 1. All vertices in the target object with $z < z_{\min} + \Delta z$ are clamped to $z_{\min} + \Delta z$.

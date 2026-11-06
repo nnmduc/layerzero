@@ -8,6 +8,7 @@ import { ProblemsWorkbench } from './components/ProblemsWorkbench';
 import { LearningDiffSection } from './components/LearningDiffSection';
 import { DownloadSection } from './components/DownloadSection';
 import { ContactSection } from './components/ContactSection';
+import { ChangelogPage } from './components/ChangelogPage';
 import { PegforgePage } from './pegforge/PegforgePage';
 
 export const App: React.FC = () => {
@@ -50,6 +51,10 @@ export const App: React.FC = () => {
     (typeof window !== 'undefined' &&
       (window.location.hash.startsWith('#/pegforge') ||
         window.location.search.includes('page=pegforge')));
+
+  if (currentPath.replace(/\/+$/, '') === '/changelog') {
+    return <ChangelogPage darkMode={darkMode} onToggleTheme={handleToggleTheme} />;
+  }
 
   if (isPegforge) {
     return <PegforgePage darkMode={darkMode} onToggleTheme={handleToggleTheme} />;

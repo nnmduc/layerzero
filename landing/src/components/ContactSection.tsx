@@ -92,6 +92,13 @@ export const ContactSection: React.FC = () => {
             </button>
             <span>·</span>
             <a
+              href="/changelog"
+              className="text-[#6E6E73] dark:text-zinc-400 hover:text-[#1D1D1F] dark:hover:text-zinc-200 transition-colors underline-offset-4 hover:underline"
+            >
+              Nhật ký thay đổi
+            </a>
+            <span>·</span>
+            <a
               href="https://github.com/nnmduc/layerzero/releases/latest"
               target="_blank"
               rel="noopener noreferrer"

@@ -5,14 +5,16 @@ interface NavbarProps {
   darkMode: boolean;
   onToggleTheme: () => void;
   isPegforge?: boolean;
+  /** Sub-pages (e.g. /changelog) have none of the home sections, so the nav only links back home. */
+  isSubpage?: boolean;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ darkMode, onToggleTheme, isPegforge }) => {
+export const Navbar: React.FC<NavbarProps> = ({ darkMode, onToggleTheme, isPegforge, isSubpage }) => {
   return (
     <header className="sticky top-0 z-50 h-16 w-full apple-nav-glass transition-colors duration-300">
       <div className="max-w-7xl mx-auto h-full px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
         <a
-          href={isPegforge ? '/' : '#'}
+          href={isPegforge || isSubpage ? '/' : '#'}
           className="flex items-center gap-2.5 group focus:outline-none"
           aria-label="LayerZero Studio Trang chủ"
         >
@@ -55,6 +57,12 @@ export const Navbar: React.FC<NavbarProps> = ({ darkMode, onToggleTheme, isPegfo
             >
               <span>PegForge</span>
               <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] animate-pulse" />
+            </a>
+          </nav>
+        ) : isSubpage ? (
+          <nav aria-label="Điều hướng chính" className="hidden md:flex items-center gap-7 text-[13.5px] font-medium text-[#1D1D1F]/80 dark:text-zinc-300 whitespace-nowrap">
+            <a href="/" className="hover:text-[#0071E3] dark:hover:text-[#2997FF] transition-colors">
+              Trang chủ
             </a>
           </nav>
         ) : (
@@ -117,7 +125,7 @@ export const Navbar: React.FC<NavbarProps> = ({ darkMode, onToggleTheme, isPegfo
             </a>
           ) : (
             <a
-              href="#tai-ve"
+              href={isSubpage ? '/#tai-ve' : '#tai-ve'}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#0071E3] hover:bg-[#0077ED] text-white text-[13px] font-medium whitespace-nowrap shadow-sm active:scale-[0.98] transition-all"
             >
               <DownloadSimple size={15} weight="bold" />

@@ -308,7 +308,7 @@ npx tauri build --bundles nsis,msi
 
 ### 4. Automated GitHub Actions Build & Release
 
-Every push to the `main` branch (or `v*` tag) triggers [`.github/workflows/release-desktop.yml`](.github/workflows/release-desktop.yml), which automatically compiles the Python sidecar and Tauri v2 installers for **Linux** (`.AppImage`, `.deb`) and **Windows** (`.exe`, `.msi`) and publishes them to [**GitHub Releases**](https://github.com/nnmduc/layerzero/releases/latest).
+Every pushed version tag (`v*`, e.g. `git tag -a v2.2.0 && git push origin v2.2.0`) triggers [`.github/workflows/release-desktop.yml`](.github/workflows/release-desktop.yml), which automatically compiles the Python sidecar and Tauri v2 installers for **Linux** (`.AppImage`, `.deb`) and **Windows** (`.exe`, `.msi`) and publishes them to [**GitHub Releases**](https://github.com/nnmduc/layerzero/releases/latest).
 
 ---
 

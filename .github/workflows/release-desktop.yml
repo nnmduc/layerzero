@@ -1,8 +1,9 @@
 name: Build & Release Desktop (Linux & Windows)
 
+# Releases are cut only from version tags (e.g. v2.2.0). Branch pushes are covered by ci.yml;
+# publishing on a branch push would create a release and tag named after the branch.
 on:
   push:
-    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -178,6 +179,8 @@ jobs:
   publish-release:
     name: Publish to GitHub Releases
     needs: [build-linux, build-windows]
+    # Manual runs from a branch only build artifacts; only version tags publish a release.
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - name: Download All Built Artifacts

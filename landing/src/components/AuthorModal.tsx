@@ -58,21 +58,16 @@ export const AuthorModal: React.FC<AuthorModalProps> = ({ isOpen, onClose }) => 
             </button>
 
             {/* Header / Avatar */}
-            <div className="flex items-center gap-4 mb-5">
-              <div className="relative w-12 h-12 rounded-2xl bg-[#0071E3]/10 text-[#0071E3] dark:text-[#2997FF] flex items-center justify-center shadow-sm">
-                <Code size={22} weight="bold" />
+            <div className="flex items-center gap-3.5 mb-5">
+              <div className="relative w-11 h-11 rounded-2xl bg-[#0071E3]/10 text-[#0071E3] dark:text-[#2997FF] flex items-center justify-center shadow-sm">
+                <Code size={20} weight="bold" />
                 <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white dark:border-[#1C1C1E] flex items-center justify-center">
                   <Heart size={8} weight="fill" className="text-white" />
                 </span>
               </div>
-              <div>
-                <h3 id="author-title" className="text-lg font-bold tracking-tight">
-                  Đôi lời từ tác giả
-                </h3>
-                <p className="text-xs text-[#6E6E73] dark:text-[#98989D] mt-0.5">
-                  Software Engineer · Đam mê nghiên cứu & in 3D
-                </p>
-              </div>
+              <h3 id="author-title" className="text-lg font-bold tracking-tight">
+                Đôi lời từ tác giả
+              </h3>
             </div>
 
             {/* Message Body */}

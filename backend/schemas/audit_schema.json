@@ -77,7 +77,9 @@
               "SCARF_SEAM_CYLINDER",
               "FUZZY_SKIN",
               "ARACHNE_FINE_DETAIL",
-              "BRIDGE_AND_NECK_COOLING"
+              "BRIDGE_AND_NECK_COOLING",
+              "SWITCH_BED_PLATE",
+              "MATERIAL_ADVICE"
             ]
           },
           "param_value": { "type": "number" },

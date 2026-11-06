@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { FilamentSlotPanel } from './components/FilamentSlotPanel';
 import { Viewport3D } from './components/Viewport3D';
 import {
   AgentActivityLog,
@@ -6,7 +7,9 @@ import {
   AgentEnginesResponse,
   AuditReport,
   DiagnosticCard,
+  MaterialContext,
   ObjectTelemetry,
+  PresetOptions,
   SampleFile,
   TelemetryData,
 } from './types';
@@ -53,7 +56,13 @@ export const App: React.FC = () => {
 
   // Printer & Filament Presets
   const [printerPreset, setPrinterPreset] = useState<string>('Bambu Lab A1 0.4 nozzle');
-  const [filamentPreset, setFilamentPreset] = useState<string>('Bambu PLA Lite @BBL A1');
+  // Filament is a UI key ('PLA Lite' | 'PLA Basic' | 'PETG HF'); the backend resolves the exact
+  // Bambu preset for the selected printer (e.g. `Bambu PLA Basic @BBL P1S 0.4 nozzle`).
+  const [filamentPreset, setFilamentPreset] = useState<string>('PLA Lite');
+  const [presetOptions, setPresetOptions] = useState<PresetOptions | null>(null);
+  const [materialContext, setMaterialContext] = useState<MaterialContext | null>(null);
+  // Per-slot filament choice, only used when a file mixes material families (null = default plan)
+  const [slotFilaments, setSlotFilaments] = useState<(string | null)[] | null>(null);
 
   // Dynamic Island & Modals
   const [islandStatus, setIslandStatus] = useState<string>('Chọn file .3mf hoặc .stl để bắt đầu');
@@ -111,12 +120,74 @@ export const App: React.FC = () => {
       }
     };
 
+    const loadPresets = async (attempt = 0) => {
+      try {
+        const r = await fetch(`${API_BASE}/api/presets`);
+        if (!r.ok) throw new Error('Backend booting');
+        const data: PresetOptions = await r.json();
+        if (!cancelled) setPresetOptions(data);
+      } catch {
+        if (!cancelled && attempt < 25) setTimeout(() => loadPresets(attempt + 1), 400);
+      }
+    };
+
     loadEngines();
+    loadPresets();
     loadSamplesWithRetry();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  // Printer / filament / slot changes: refresh the material context, and drop recommendations that
+  // were computed for the previous material (rule-engine results are recomputed in place).
+  const materialKeyRef = useRef<string>('');
+  useEffect(() => {
+    const key = `${printerPreset}|${filamentPreset}|${JSON.stringify(slotFilaments)}`;
+    const prevKey = materialKeyRef.current;
+    materialKeyRef.current = key;
+    if (!sessionId || !prevKey || prevKey === key) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`${API_BASE}/api/baseline`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: sessionId,
+            printer_preset: printerPreset,
+            filament_preset: filamentPreset,
+            slot_filaments: slotFilaments,
+          }),
+        });
+        if (!r.ok || cancelled) return;
+        const data: { audit: AuditReport; material_context: MaterialContext } = await r.json();
+        setMaterialContext(data.material_context);
+        if (audit && auditSource === 'engine') {
+          setAudit(data.audit);
+          setIslandStatus(`Đã cập nhật đề xuất cho ${filamentPreset} · ${data.material_context.printer_label}`);
+        } else if (audit) {
+          setAudit(null);
+          setAuditSource('none');
+          setIslandStatus(`Đã đổi sang ${filamentPreset} · Bấm phân tích lại để AI đề xuất theo vật liệu mới`);
+        }
+      } catch {
+        // Backend unreachable: keep current state; the next analysis uses the new presets anyway.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [printerPreset, filamentPreset, slotFilaments, sessionId]);
+
+  const handleSlotFilamentChange = (slotIndex: number, filament: string | null) => {
+    if (!materialContext) return;
+    const base = slotFilaments ?? materialContext.slots.map((s) => s.target_filament);
+    setSlotFilaments(base.map((v, i) => (i === slotIndex ? filament : v)));
+  };
+
+  const filamentOptionIds = presetOptions?.filaments.map((f) => f.id) ?? ['PLA Lite', 'PLA Basic', 'PETG HF'];
 
   const agentBrandName =
     selectedAgent === 'claude'
@@ -142,6 +213,7 @@ export const App: React.FC = () => {
     session_id: string;
     telemetry: TelemetryData;
     audit: AuditReport;
+    material_context?: MaterialContext;
   }) => {
     if (activeEsRef.current) {
       activeEsRef.current.close();
@@ -150,6 +222,8 @@ export const App: React.FC = () => {
     setIsAnalyzing(false);
     setSessionId(data.session_id);
     setTelemetry(data.telemetry);
+    setMaterialContext(data.material_context ?? null);
+    setSlotFilaments(null);
     setAudit(null); // Clear old audit so user clearly sees 3D Geometry first before running AI!
     setAuditSource('none');
     setSelectedCardId(null);
@@ -361,6 +435,7 @@ export const App: React.FC = () => {
           settings_diff: audit.settings_diff,
           printer_preset: printerPreset,
           filament_preset: filamentPreset,
+          slot_filaments: slotFilaments,
           export_format: exportFormat,
           open_in_bambu: openInBambu,
           reveal_in_finder: !openInBambu && IS_DESKTOP,
@@ -446,7 +521,7 @@ export const App: React.FC = () => {
   // Filter cards by current plate if multi-plate and leftPlateFilter === 'current'
   const cardsForPlate =
     isMultiPlate && leftPlateFilter === 'current'
-      ? cards.filter((c) => activePlateObjectIds.includes(c.object_id))
+      ? cards.filter((c) => c.object_id === 'global' || activePlateObjectIds.includes(c.object_id))
       : cards;
 
   const filteredCards =
@@ -493,6 +568,10 @@ export const App: React.FC = () => {
         return { icon: 'ph-cylinder', color: 'text-[#0071E3] bg-[#0071E3]/12' };
       case 'FUZZY_SKIN':
         return { icon: 'ph-magic-wand', color: 'text-[#6E6E73] bg-black/[0.06] dark:bg-white/[0.1]' };
+      case 'SWITCH_BED_PLATE':
+        return { icon: 'ph-squares-four', color: 'text-[#FF3B30] bg-[#FF3B30]/12' };
+      case 'MATERIAL_ADVICE':
+        return { icon: 'ph-spiral', color: 'text-[#FF9F0A] bg-[#FF9F0A]/15' };
       default:
         return { icon: 'ph-sparkle', color: 'text-[#0071E3] bg-[#0071E3]/12' };
     }
@@ -553,9 +632,16 @@ export const App: React.FC = () => {
               onChange={(e) => setPrinterPreset(e.target.value)}
               className="bg-transparent font-medium text-[#1D1D1F] dark:text-white focus:outline-none cursor-pointer"
             >
-              <option value="Bambu Lab A1 0.4 nozzle">A1 (0.4mm PEI)</option>
-              <option value="Bambu Lab A1 mini 0.4 nozzle">A1 Mini (0.4mm)</option>
-              <option value="Bambu Lab P1S 0.4 nozzle">P1S / X1C</option>
+              {(presetOptions?.printers ?? [
+                { id: 'Bambu Lab A1 0.4 nozzle', label: 'A1' },
+                { id: 'Bambu Lab A1 mini 0.4 nozzle', label: 'A1 mini' },
+                { id: 'Bambu Lab P1S 0.4 nozzle', label: 'P1S' },
+                { id: 'Bambu Lab X1 Carbon 0.4 nozzle', label: 'X1C' },
+              ]).map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label} (0.4mm)
+                </option>
+              ))}
             </select>
             <span className="opacity-30">|</span>
             <span className="w-2 h-2 rounded-full bg-white border border-black/25 inline-block shrink-0"></span>
@@ -564,9 +650,11 @@ export const App: React.FC = () => {
               onChange={(e) => setFilamentPreset(e.target.value)}
               className="bg-transparent font-medium text-[#6E6E73] dark:text-[#A1A1A6] focus:outline-none cursor-pointer"
             >
-              <option value="Bambu PLA Lite @BBL A1">PLA Lite</option>
-              <option value="Bambu PLA Basic @BBL A1">PLA Basic</option>
-              <option value="Bambu PETG HF @BBL A1">PETG HF</option>
+              {filamentOptionIds.map((f) => (
+                <option key={f} value={f} title={presetOptions?.filaments.find((o) => o.id === f)?.presets[printerPreset]}>
+                  {f}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -792,6 +880,15 @@ export const App: React.FC = () => {
                     </span>
                   </button>
                 </div>
+
+                {materialContext && (
+                  <FilamentSlotPanel
+                    context={materialContext}
+                    filamentOptions={filamentOptionIds}
+                    slotFilaments={slotFilaments}
+                    onSlotChange={handleSlotFilamentChange}
+                  />
+                )}
 
                 {/* Live Activity Feed directly inside Left Pane while analyzing */}
                 {agentLogs.length > 0 && (
@@ -1091,18 +1188,24 @@ export const App: React.FC = () => {
                               </div>
                             </div>
 
-                            <label
-                              className="flex items-center cursor-pointer shrink-0"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={card.approved}
-                                onChange={(e) => toggleCardApproval(card.id, e.target.checked)}
-                                className="sr-only peer"
-                              />
-                              <div className="w-9 h-5 bg-black/15 dark:bg-white/20 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all relative peer-checked:bg-[#0071E3]"></div>
-                            </label>
+                            {card.action_type === 'MATERIAL_ADVICE' ? (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[#FF9F0A]/15 text-[#C93400] dark:text-[#FF9F0A] shrink-0">
+                                Lưu ý
+                              </span>
+                            ) : (
+                              <label
+                                className="flex items-center cursor-pointer shrink-0"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={card.approved}
+                                  onChange={(e) => toggleCardApproval(card.id, e.target.checked)}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-9 h-5 bg-black/15 dark:bg-white/20 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all relative peer-checked:bg-[#0071E3]"></div>
+                              </label>
+                            )}
                           </div>
 
                           <p className="text-[12px] text-[#6E6E73] dark:text-[#A1A1A6] leading-relaxed mt-2">

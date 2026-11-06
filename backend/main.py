@@ -26,6 +26,7 @@ from pydantic import BaseModel
 
 from ai_runner import _ensure_desktop_path, get_available_engines, stream_agent_audit
 from patcher import apply_3mf_optimizations, apply_stl_export, build_baseline_audit
+from filament_profiles import build_material_context, list_preset_options
 from profiler import profile_3mf
 
 SUPPORTED_EXTENSIONS = (".3mf", ".stl")
@@ -43,7 +44,7 @@ STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 app = FastAPI(
     title="LayerZero 3MF AI Optimizer API",
     description="REST & SSE API for 3D Morphology Profiling, Headless AI Slicer Auditing, and Non-Destructive 3MF Patching.",
-    version="2.0.0",
+    version="2.2.0",
 )
 
 cors_origins = [o.strip() for o in os.environ.get("LAYERZERO_CORS_ORIGINS", "*").split(",") if o.strip()]
@@ -103,7 +104,14 @@ def _reveal_in_file_manager(target: Path) -> None:
 class LoadLocalRequest(BaseModel):
     path: str
     printer_preset: str = "Bambu Lab A1 0.4 nozzle"
-    filament_preset: str = "Bambu PLA Lite @BBL A1"
+    filament_preset: str = "PLA Lite"
+
+
+class BaselineRequest(BaseModel):
+    session_id: str
+    printer_preset: str = "Bambu Lab A1 0.4 nozzle"
+    filament_preset: str = "PLA Lite"
+    slot_filaments: list[str | None] | None = None
 
 
 class ApplyRequest(BaseModel):
@@ -111,7 +119,8 @@ class ApplyRequest(BaseModel):
     diagnostic_cards: list[dict[str, Any]]
     settings_diff: list[dict[str, Any]]
     printer_preset: str = "Bambu Lab A1 0.4 nozzle"
-    filament_preset: str = "Bambu PLA Lite @BBL A1"
+    filament_preset: str = "PLA Lite"
+    slot_filaments: list[str | None] | None = None
     export_format: str = "3mf"
     open_in_bambu: bool = False
     reveal_in_finder: bool = False
@@ -119,7 +128,32 @@ class ApplyRequest(BaseModel):
 
 @app.get("/api/health")
 def health_check() -> dict[str, str]:
-    return {"status": "ok", "service": "layerzero-backend", "version": "2.0.0"}
+    return {"status": "ok", "service": "layerzero-backend", "version": "2.2.0"}
+
+
+@app.get("/api/presets")
+def list_presets() -> dict[str, Any]:
+    """Printer and filament choices with the exact Bambu preset each pair resolves to."""
+    return list_preset_options()
+
+
+def _material_context(telemetry: dict[str, Any], printer: str, filament: str,
+                      slot_filaments: list[str | None] | None = None) -> dict[str, Any]:
+    return build_material_context(telemetry.get("project_settings", {}), printer, filament, slot_filaments)
+
+
+@app.post("/api/baseline")
+def rebuild_baseline(req: BaselineRequest) -> dict[str, Any]:
+    """Recomputes the rule-engine audit after the user changes printer, filament or slot mapping."""
+    if req.session_id not in SESSIONS:
+        raise HTTPException(status_code=404, detail="Session không tồn tại")
+    sess = SESSIONS[req.session_id]
+    audit = build_baseline_audit(sess["telemetry"], req.printer_preset, req.filament_preset)
+    sess["baseline_audit"] = audit
+    return {
+        "audit": audit,
+        "material_context": _material_context(sess["telemetry"], req.printer_preset, req.filament_preset, req.slot_filaments),
+    }
 
 
 @app.get("/api/agent-engines")
@@ -153,7 +187,7 @@ def list_local_samples() -> list[dict[str, str]]:
 async def upload_3mf(
     file: UploadFile = File(...),
     printer_preset: str = "Bambu Lab A1 0.4 nozzle",
-    filament_preset: str = "Bambu PLA Lite @BBL A1",
+    filament_preset: str = "PLA Lite",
 ) -> dict[str, Any]:
     safe_filename = Path(file.filename or "").name
     if not safe_filename.lower().endswith(SUPPORTED_EXTENSIONS):
@@ -182,6 +216,7 @@ async def upload_3mf(
         "session_id": session_id,
         "telemetry": telemetry,
         "audit": baseline_audit,
+        "material_context": _material_context(telemetry, printer_preset, filament_preset),
     }
 
 
@@ -212,6 +247,7 @@ def load_local_3mf(req: LoadLocalRequest) -> dict[str, Any]:
         "session_id": session_id,
         "telemetry": telemetry,
         "audit": baseline_audit,
+        "material_context": _material_context(telemetry, req.printer_preset, req.filament_preset),
     }
 
 
@@ -219,7 +255,7 @@ def load_local_3mf(req: LoadLocalRequest) -> dict[str, Any]:
 async def analyze_with_ai_agent(
     session_id: str,
     printer_preset: str = "Bambu Lab A1 0.4 nozzle",
-    filament_preset: str = "Bambu PLA Lite @BBL A1",
+    filament_preset: str = "PLA Lite",
     agent: str = "auto",
 ) -> StreamingResponse:
     if session_id not in SESSIONS:
@@ -270,6 +306,7 @@ def apply_and_export(req: ApplyRequest) -> dict[str, Any]:
             settings_diff=req.settings_diff,
             printer_preset=req.printer_preset,
             filament_preset=req.filament_preset,
+            slot_overrides=req.slot_filaments,
         )
     sess["last_output_path"] = dst_path
 

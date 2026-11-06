@@ -1,0 +1,327 @@
+"""
+Printer / filament / process preset resolution and material-family policies.
+
+Bambu Studio ships one filament preset per printer family (e.g. `Bambu PLA Basic @BBL A1`,
+`@BBL A1M`, `@BBL P1S 0.4 nozzle`, `@BBL X1C`). Each lists the printers it supports under
+`compatible_printers`. This module picks the right preset for the selected printer instead of
+hardcoding `@BBL A1`, and describes how each material family (PLA, PLA Lite, PETG) changes the
+rule engine's proposals. Absolute numbers (temperatures, fan, flow) always come from the vendor
+profile; the policies below only hold material-specific deltas and safety floors.
+"""
+
+from functools import lru_cache
+from typing import Any
+
+from profiler import load_bbl_system_profiles, resolve_profile
+
+# Printers offered in the UI. `fallback_*` are only used when Bambu Studio's system profiles
+# are not installed on this machine, so the app still writes sensible preset names.
+PRINTERS: dict[str, dict[str, Any]] = {
+    "Bambu Lab A1 0.4 nozzle": {
+        "label": "A1",
+        "enclosed": False,
+        "fallback_filament_suffix": "@BBL A1",
+        "fallback_process_suffix": "@BBL A1",
+    },
+    "Bambu Lab A1 mini 0.4 nozzle": {
+        "label": "A1 mini",
+        "enclosed": False,
+        "fallback_filament_suffix": "@BBL A1M",
+        "fallback_process_suffix": "@BBL A1M",
+    },
+    "Bambu Lab P1S 0.4 nozzle": {
+        "label": "P1S",
+        "enclosed": True,
+        "fallback_filament_suffix": "@BBL X1C",
+        "fallback_process_suffix": "@BBL X1C",
+    },
+    "Bambu Lab X1 Carbon 0.4 nozzle": {
+        "label": "X1C",
+        "enclosed": True,
+        "fallback_filament_suffix": "@BBL X1C",
+        "fallback_process_suffix": "@BBL X1C",
+    },
+}
+DEFAULT_PRINTER = "Bambu Lab A1 0.4 nozzle"
+
+# Filament choices offered in the UI: key -> Bambu preset base name (before " @BBL ...").
+FILAMENTS: dict[str, str] = {
+    "PLA Lite": "Bambu PLA Lite",
+    "PLA Basic": "Bambu PLA Basic",
+    "PETG HF": "Bambu PETG HF",
+}
+DEFAULT_FILAMENT = "PLA Lite"
+
+# Bambu Studio `curr_bed_type` values -> filament temperature key prefix.
+BED_TYPE_TEMP_KEY: dict[str, str] = {
+    "Textured PEI Plate": "textured_plate_temp",
+    "High Temp Plate": "hot_plate_temp",
+    "Cool Plate": "cool_plate_temp",
+    "Engineering Plate": "eng_plate_temp",
+    "Supertack Plate": "supertack_plate_temp",
+}
+BED_TYPE_LABEL: dict[str, str] = {
+    "Textured PEI Plate": "Textured PEI",
+    "High Temp Plate": "Smooth PEI (High Temp)",
+    "Cool Plate": "Cool Plate",
+    "Engineering Plate": "Engineering Plate",
+    "Supertack Plate": "SuperTack Plate",
+}
+DEFAULT_BED_TYPE = "Textured PEI Plate"
+
+# Material-family deltas used by the rule engine and enforced again at apply time.
+MATERIAL_POLICIES: dict[str, dict[str, Any]] = {
+    "PLA": {
+        "label": "PLA",
+        "support_top_z_distance": "0.14",
+        "support_interface_spacing": "0.15",
+        "min_support_top_z_distance": 0.0,
+        "brim_object_gap": "0",
+        "screw_brim_object_gap": "0.04",
+        "min_brim_object_gap": 0.0,
+        "z_hop": "0.8",
+        "z_hop_type": "Normal Lift",
+        "ironing_flow": "12%",
+        "ironing_speed": "30",
+        "force_full_overhang_fan": True,
+        "weak_layer_adhesion": False,
+    },
+    "PLA_LITE": {
+        "label": "PLA Lite",
+        "support_top_z_distance": "0.14",
+        "support_interface_spacing": "0.15",
+        "min_support_top_z_distance": 0.0,
+        "brim_object_gap": "0",
+        "screw_brim_object_gap": "0.04",
+        "min_brim_object_gap": 0.0,
+        "z_hop": "0.8",
+        "z_hop_type": "Normal Lift",
+        "ironing_flow": "12%",
+        "ironing_speed": "30",
+        "force_full_overhang_fan": True,
+        "weak_layer_adhesion": True,
+    },
+    "PETG": {
+        "label": "PETG",
+        # PETG welds to its own supports: keep at least ~one layer of air and a looser interface.
+        "support_top_z_distance": "0.2",
+        "support_interface_spacing": "0.25",
+        "min_support_top_z_distance": 0.2,
+        # A zero-gap PETG brim fuses to the part and cannot be peeled cleanly.
+        "brim_object_gap": "0.1",
+        "screw_brim_object_gap": "0.1",
+        "min_brim_object_gap": 0.1,
+        # Tall Normal Lift hops add strings on PETG; Bambu's own PETG profile uses Spiral Lift.
+        "z_hop": "0.4",
+        "z_hop_type": "Spiral Lift",
+        "ironing_flow": "10%",
+        "ironing_speed": "20",
+        "force_full_overhang_fan": False,
+        "weak_layer_adhesion": False,
+    },
+}
+
+MODEL_FAMILIES = ("PLA", "PLA_LITE", "PETG")
+
+
+def normalize_printer(printer: str) -> str:
+    return printer if printer in PRINTERS else DEFAULT_PRINTER
+
+
+def filament_base_name(value: str) -> str:
+    """Accepts a UI key ('PETG HF') or a full preset name ('Bambu PETG HF @BBL A1')."""
+    value = (value or "").strip()
+    if value in FILAMENTS:
+        return FILAMENTS[value]
+    if " @" in value:
+        return value.split(" @", 1)[0]
+    return value or FILAMENTS[DEFAULT_FILAMENT]
+
+
+def filament_key_for(value: str) -> str:
+    """Maps any preset name back to its UI key, defaulting to PLA Lite for unknown names."""
+    base = filament_base_name(value)
+    for key, b in FILAMENTS.items():
+        if b == base:
+            return key
+    return DEFAULT_FILAMENT
+
+
+def _pick_compatible(prefix: str, printer: str, profiles: dict[str, dict]) -> str | None:
+    """Shortest instantiable preset name starting with `prefix` that lists `printer` as compatible."""
+    matches: list[str] = []
+    for name in profiles:
+        if not name.startswith(prefix):
+            continue
+        resolved = resolve_profile(name, profiles)
+        if str(resolved.get("instantiation", "true")).lower() != "true":
+            continue
+        if printer in (resolved.get("compatible_printers") or []):
+            matches.append(name)
+    return min(matches, key=len) if matches else None
+
+
+@lru_cache(maxsize=64)
+def resolve_filament_preset(printer: str, filament: str) -> str:
+    printer = normalize_printer(printer)
+    base = filament_base_name(filament)
+    picked = _pick_compatible(f"{base} @", printer, load_bbl_system_profiles())
+    return picked or f"{base} {PRINTERS[printer]['fallback_filament_suffix']}"
+
+
+@lru_cache(maxsize=32)
+def resolve_process_preset(printer: str, quality: str = "0.20mm Standard") -> str:
+    printer = normalize_printer(printer)
+    picked = _pick_compatible(f"{quality} @", printer, load_bbl_system_profiles())
+    return picked or f"{quality} {PRINTERS[printer]['fallback_process_suffix']}"
+
+
+def material_family(preset_name: str, filament_type: str = "") -> str:
+    """Classifies a filament slot: PLA, PLA_LITE, PETG, SUPPORT or OTHER."""
+    text = f"{preset_name} {filament_type}".lower()
+    if "support" in text or "pva" in text or "bvoh" in text:
+        return "SUPPORT"
+    if "petg" in text or filament_type.upper() in ("PETG", "PET"):
+        return "PETG"
+    if "pla lite" in text:
+        return "PLA_LITE"
+    if "pla" in text:
+        return "PLA"
+    return "OTHER"
+
+
+def family_group(family: str) -> str:
+    """PLA and PLA Lite print with the same physics, so they are retargeted together."""
+    return "PLA" if family in ("PLA", "PLA_LITE") else family
+
+
+def policy_for(filament: str) -> dict[str, Any]:
+    fam = material_family(filament_base_name(filament))
+    return MATERIAL_POLICIES.get(fam, MATERIAL_POLICIES["PLA"])
+
+
+def bed_type_of(project_settings: dict[str, Any]) -> str:
+    raw = project_settings.get("curr_bed_type")
+    if isinstance(raw, list):
+        raw = raw[0] if raw else None
+    return raw if raw in BED_TYPE_TEMP_KEY else DEFAULT_BED_TYPE
+
+
+def _slot_list(project_settings: dict[str, Any], key: str, n: int) -> list[str]:
+    raw = project_settings.get(key)
+    vals = raw if isinstance(raw, list) else ([raw] if raw else [])
+    return [str(vals[i]) if i < len(vals) else "" for i in range(n)]
+
+
+def slot_count(project_settings: dict[str, Any]) -> int:
+    for key in ("filament_colour", "filament_settings_id", "filament_type"):
+        raw = project_settings.get(key)
+        if isinstance(raw, list) and raw:
+            return len(raw)
+    return 1
+
+
+def describe_filament_slots(project_settings: dict[str, Any]) -> list[dict[str, Any]]:
+    """Per-slot author filament info read from the 3MF's project settings."""
+    n = slot_count(project_settings)
+    presets = _slot_list(project_settings, "filament_settings_id", n)
+    types = _slot_list(project_settings, "filament_type", n)
+    colours = _slot_list(project_settings, "filament_colour", n)
+    slots = []
+    for i in range(n):
+        fam = material_family(presets[i], types[i])
+        slots.append({
+            "index": i,
+            "preset": presets[i],
+            "type": types[i] or ("PLA" if not presets[i] else ""),
+            "colour": colours[i],
+            "family": fam,
+            "role": "support" if fam == "SUPPORT" else "model",
+        })
+    return slots
+
+
+def main_model_group(slots: list[dict[str, Any]]) -> str | None:
+    for s in slots:
+        if s["role"] == "model" and s["family"] in MODEL_FAMILIES:
+            return family_group(s["family"])
+    return None
+
+
+def has_mixed_model_families(slots: list[dict[str, Any]]) -> bool:
+    groups = {family_group(s["family"]) for s in slots if s["role"] == "model" and s["family"] in MODEL_FAMILIES}
+    return len(groups) > 1
+
+
+def plan_slot_filaments(
+    slots: list[dict[str, Any]],
+    selected_filament: str,
+    slot_overrides: list[str | None] | None = None,
+) -> dict[int, str]:
+    """
+    Decides which filament each slot is retargeted to: {slot_index: UI filament key}.
+    Slots not in the result keep the author's settings untouched (e.g. support interfaces).
+
+    Default: retarget only slots in the same material group as the main body (or every slot
+    whose material is unknown, e.g. plain STL or files without filament metadata).
+    `slot_overrides` (one entry per slot, None = keep author's) replaces the default when given.
+    """
+    if slot_overrides and len(slot_overrides) == len(slots):
+        return {i: filament_key_for(v) for i, v in enumerate(slot_overrides) if v}
+
+    key = filament_key_for(selected_filament)
+    main = main_model_group(slots)
+    if main is None:
+        return {s["index"]: key for s in slots if s["role"] == "model"} or {0: key}
+    return {
+        s["index"]: key
+        for s in slots
+        if s["role"] == "model" and family_group(s["family"]) == main
+    }
+
+
+def build_material_context(
+    project_settings: dict[str, Any],
+    printer: str,
+    filament: str,
+    slot_overrides: list[str | None] | None = None,
+) -> dict[str, Any]:
+    """Summary the UI and AI prompt use to explain which presets and plate apply."""
+    printer = normalize_printer(printer)
+    slots = describe_filament_slots(project_settings)
+    plan = plan_slot_filaments(slots, filament, slot_overrides)
+    bed = bed_type_of(project_settings)
+    for s in slots:
+        target = plan.get(s["index"])
+        s["target_filament"] = target
+        s["target_preset"] = resolve_filament_preset(printer, target) if target else None
+    return {
+        "printer_preset": printer,
+        "printer_label": PRINTERS[printer]["label"],
+        "enclosed": PRINTERS[printer]["enclosed"],
+        "filament": filament_key_for(filament),
+        "filament_preset": resolve_filament_preset(printer, filament),
+        "family": material_family(filament_base_name(filament)),
+        "bed_type": bed,
+        "bed_label": BED_TYPE_LABEL[bed],
+        "slots": slots,
+        "mixed_model_families": has_mixed_model_families(slots),
+    }
+
+
+def list_preset_options() -> dict[str, Any]:
+    """Printer and filament choices, with the exact Bambu preset each pair resolves to."""
+    return {
+        "printers": [{"id": p, "label": meta["label"], "enclosed": meta["enclosed"]} for p, meta in PRINTERS.items()],
+        "filaments": [
+            {
+                "id": key,
+                "label": key,
+                "family": material_family(base),
+                "presets": {p: resolve_filament_preset(p, key) for p in PRINTERS},
+            }
+            for key, base in FILAMENTS.items()
+        ],
+        "default_printer": DEFAULT_PRINTER,
+        "default_filament": DEFAULT_FILAMENT,
+    }

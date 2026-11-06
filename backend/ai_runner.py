@@ -23,6 +23,8 @@ import time
 from pathlib import Path
 from typing import Any, AsyncGenerator
 
+from filament_profiles import build_material_context, policy_for
+
 
 def _ensure_desktop_path() -> None:
     """Ensures macOS GUI `.app` bundles can locate `claude`, `agy`, Homebrew, and local CLI binaries."""
@@ -187,6 +189,8 @@ def build_agent_prompt(
         "source_format": telemetry.get("source_format", "3mf"),
         "target_printer": printer_preset,
         "target_filament": filament_preset,
+        "material_context": build_material_context(telemetry.get("project_settings", {}), printer_preset, filament_preset),
+        "material_policy": policy_for(filament_preset),
         "plates": telemetry.get("plates", []),
         "objects": compact_objects,
         "initial_morphology_hints": baseline_audit,
@@ -209,7 +213,10 @@ def build_agent_prompt(
         "ốc vít có rãnh tua-vít không Brim / dung sai lỗ chốt (`OPTIMIZE_SCREW`), chi tiết cao mảnh nhạy quán tính trượt bàn Y / cổ thắt (`ROTATE_YAW`, `BRIDGE_AND_NECK_COOLING`).\n"
         "   - `aesthetics` (Độ đẹp bề mặt theo hình thái): Đỉnh vòm/mặt cầu bị bậc thang (`ADAPTIVE_LAYER_DOME` + Concentric Top), mặt hộp phẳng ngang rộng cần là mịn (`IRONING_FLAT_TOP`), "
         "thân trụ tròn không có góc giấu Z-Seam (`SCARF_SEAM_CYLINDER` + Arc Fitting G2/G3), chi tiết mảnh/nhiều đa giác (`ARACHNE_FINE_DETAIL`), và gợi ý tùy chọn nhám mờ (`FUZZY_SKIN` với `approved: false`).\n"
-        "3. Mọi mô tả (`summary`, `title`, `desc`, `pill_text`, `meaning`, `reason`) viết bằng tiếng Việt sắc sảo, giải thích rõ 'Vì sao' dựa trên con số thực tế của mô hình này.\n\n"
+        "3. Vật liệu: tôn trọng `material_context` (preset Bambu đã chọn đúng theo máy in, loại mặt bàn `bed_type`, các slot AMS) và `material_policy`. "
+        "Với PETG: quạt thấp, khe hở Support >= 0.2mm, khe hở Brim >= 0.1mm, không ép Normal Lift. Với PLA Lite: bám lớp yếu hơn PLA Basic. "
+        "Chỉ đề xuất nhiệt độ bàn cho đúng key của `bed_type` hiện tại. Không thay đổi các slot có `target_filament` = null (slot Support/vật liệu khác).\n"
+        "4. Mọi mô tả (`summary`, `title`, `desc`, `pill_text`, `meaning`, `reason`) viết bằng tiếng Việt sắc sảo, giải thích rõ 'Vì sao' dựa trên con số thực tế của mô hình này.\n\n"
         f"HỒ SƠ DỮ LIỆU ĐẦU VÀO:\n{json.dumps(prompt_payload, ensure_ascii=False)}"
     )
 

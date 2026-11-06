@@ -16,6 +16,7 @@ import re
 import sys
 import xml.etree.ElementTree as ET
 import zipfile
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -118,7 +119,9 @@ def _parse_stl_file(path: Path) -> tuple[np.ndarray, np.ndarray]:
     return verts, tris
 
 
+@lru_cache(maxsize=4)
 def load_bbl_system_profiles(system_dir: Path = BBL_SYSTEM_DIR) -> dict[str, dict]:
+    # Cached: ~2,500 vendor JSON files are parsed once per process (callers treat the result as read-only).
     profiles: dict[str, dict] = {}
     if not system_dir.exists():
         return profiles

@@ -28,20 +28,63 @@ from profiler import (
     get_system_baseline,
     profile_3mf,
 )
+from filament_profiles import (
+    BED_TYPE_LABEL,
+    BED_TYPE_TEMP_KEY,
+    DEFAULT_BED_TYPE,
+    bed_type_of,
+    normalize_printer,
+    policy_for,
+    resolve_filament_preset,
+    resolve_process_preset,
+)
+from material_advice_cards import build_material_advice_cards
+from slicer_config_merge import build_patched_config, set_filament_key
+
+
+def guard_material_value(key: str, val: str, policy: dict[str, Any], vendor: dict[str, Any]) -> str | None:
+    """
+    Enforces material safety floors on any proposed value (rule engine or AI agent):
+    PETG support gap / brim gap minimums, nozzle temperature inside the vendor range, and no
+    zeroed bed temperature where the vendor supports the plate. Returns None to drop the edit.
+    """
+    try:
+        num = float(val.split()[0].rstrip("m%"))
+    except (ValueError, IndexError):
+        return val
+    if key in ("support_top_z_distance", "support_bottom_z_distance"):
+        return f"{max(num, policy['min_support_top_z_distance']):g}"
+    if key == "brim_object_gap":
+        return f"{max(num, policy['min_brim_object_gap']):g}"
+    if key in ("nozzle_temperature", "nozzle_temperature_initial_layer"):
+        lo = float(fmt_val(vendor.get("nozzle_temperature_range_low", num)).split(",")[0])
+        hi = float(fmt_val(vendor.get("nozzle_temperature_range_high", num)).split(",")[0])
+        return str(int(min(max(num, lo), hi)))
+    if key.endswith(("plate_temp", "plate_temp_initial_layer")):
+        vend = fmt_val(vendor.get(key, "")).split(",")[0]
+        if num <= 0 and vend not in ("", "0", "Auto"):
+            return None
+    return val
 
 
 def build_baseline_audit(
     telemetry: dict[str, Any],
     printer_preset: str = "Bambu Lab A1 0.4 nozzle",
-    filament_preset: str = "Bambu PLA Lite @BBL A1",
+    filament_preset: str = "PLA Lite",
 ) -> dict[str, Any]:
     """
     Generates a comprehensive initial Audit Report (Safety + Topology Aesthetics)
     directly from the mathematical 3D morphology telemetry.
     Used both as structured context for `agy` headless and as instant fallback.
+    All material-dependent proposals come from the vendor profile resolved for the selected
+    printer + filament, plus the material-family policy (PLA / PLA Lite / PETG).
     """
     orig_cfg = telemetry.get("project_settings", {})
-    sys_def = get_system_baseline(printer_preset, filament_preset, "0.20mm Standard @BBL A1")
+    printer_preset = normalize_printer(printer_preset)
+    resolved_filament = resolve_filament_preset(printer_preset, filament_preset)
+    sys_def = get_system_baseline(printer_preset, resolved_filament, resolve_process_preset(printer_preset))
+    policy = policy_for(filament_preset)
+    mat_label = policy["label"]
     objects = telemetry.get("objects", [])
 
     diagnostic_cards: list[dict[str, Any]] = []
@@ -113,7 +156,7 @@ def build_baseline_audit(
                 f"Phát hiện {len(screw_objs)} chi tiết ốc/chốt ('{first_s['name']}'). Rãnh tua-vít xẻ đôi Layer 1 dễ bung nếu tắt Brim, "
                 f"và infill zig-zag tốc độ cao gây rung lắc trụ ốc."
             ),
-            "pill_text": "Brim 5mm (gap 0.04) · 6 Walls Concentric · Tốc độ ren 35mm/s",
+            "pill_text": f"Brim 5mm (gap {policy['screw_brim_object_gap']}) · 6 Walls Concentric · Tốc độ ren 35mm/s",
             "action_type": "OPTIMIZE_SCREW",
             "param_value": 5.0,
             "approved": True,
@@ -132,7 +175,7 @@ def build_baseline_audit(
                 f"Chi tiết '{first_t['name']}' cao {first_t['size_mm'][2]}mm nhạy cảm với gia tốc giật bàn in trục Y trên máy bed-slinger. "
                 f"Cần hạ gia tốc Y và xoay dọc hướng trượt."
             ),
-            "pill_text": "Hạ gia tốc 4000 mm/s² · Z-Hop 0.8mm Normal Lift",
+            "pill_text": f"Hạ gia tốc 4000 mm/s² · Z-Hop {policy['z_hop']}mm {policy['z_hop_type']}",
             "action_type": "ROTATE_YAW",
             "param_value": 90.0,
             "approved": True,
@@ -173,7 +216,7 @@ def build_baseline_audit(
                 f"Chi tiết '{first_f['name']}' có mặt phẳng ngang rộng {flat_mm2} mm² (normal_z >= 0.995) ở vùng đỉnh. "
                 f"Bật Ironing riêng cho chi tiết này giúp bề mặt trên cùng láng mịn như đúc khuôn."
             ),
-            "pill_text": "Per-Object Ironing: Topmost · Flow 12% · Speed 30mm/s",
+            "pill_text": f"Per-Object Ironing: Topmost · Flow {policy['ironing_flow']} · Speed {policy['ironing_speed']}mm/s",
             "action_type": "IRONING_FLAT_TOP",
             "param_value": 12.0,
             "approved": True,
@@ -258,7 +301,7 @@ def build_baseline_audit(
             "default_val": fmt_val(sys_def.get("outer_wall_speed", "200")),
             "author_val": fmt_val(orig_cfg.get("outer_wall_speed", "200")),
             "proposed_val": "120",
-            "reason": "Hạ từ 200 xuống 120 mm/s giúp nhựa PLA Lite chảy đều, đồng nhất độ bóng bề mặt và triệt tiêu vân rung (ringing/VFA).",
+            "reason": f"Hạ từ 200 xuống 120 mm/s giúp nhựa {mat_label} chảy đều, đồng nhất độ bóng bề mặt và triệt tiêu vân rung (ringing/VFA).",
             "approved": True,
         },
         {
@@ -361,21 +404,12 @@ def build_baseline_audit(
             "meaning": "Khoảng cách giữa vành Brim và mép chi tiết (mm)",
             "default_val": fmt_val(sys_def.get("brim_object_gap", "0.1")),
             "author_val": fmt_val(orig_cfg.get("brim_object_gap", "0.1")),
-            "proposed_val": "0",
-            "reason": "Khe hở 0mm ép đường nhựa Brim dính liền hoàn toàn vào đế khớp cầu, không bị hở khi bẻ góc.",
-            "approved": True,
-        },
-        {
-            "key": "textured_plate_temp_initial_layer",
-            "label": "Textured PEI Plate Temp (°C)",
-            "scope_tag": "Global · Bàn nhám PEI",
-            "object_id": "global",
-            "category": "adhesion",
-            "meaning": "Nhiệt độ bàn in Textured PEI cho PLA/PLA Lite",
-            "default_val": fmt_val(sys_def.get("textured_plate_temp_initial_layer", "65")),
-            "author_val": fmt_val(orig_cfg.get("textured_plate_temp_initial_layer", "55")),
-            "proposed_val": "65",
-            "reason": "Tấm Textured PEI cần 65°C để nhựa PLA Lite điền đầy vào các hạt nhám và không cong vênh mép.",
+            "proposed_val": policy["brim_object_gap"],
+            "reason": (
+                "Khe hở 0mm ép đường nhựa Brim dính liền hoàn toàn vào đế khớp cầu, không bị hở khi bẻ góc."
+                if policy["min_brim_object_gap"] == 0
+                else f"{mat_label} hàn chặt Brim vào thân mẫu nếu khe hở bằng 0; giữ {policy['brim_object_gap']}mm để Brim vẫn bám bàn nhưng bóc ra sạch."
+            ),
             "approved": True,
         },
         {
@@ -392,6 +426,10 @@ def build_baseline_audit(
             "approved": True,
         },
     ])
+
+    bed_item = _bed_temp_setting(orig_cfg, sys_def, mat_label)
+    if bed_item:
+        settings_diff.append(bed_item)
 
     # --- KINEMATICS & STRUCTURAL STRENGTH ---
     settings_diff.extend([
@@ -436,15 +474,19 @@ def build_baseline_audit(
         },
         {
             "key": "z_hop",
-            "label": "Z-Hop Height & Normal Lift",
+            "label": f"Z-Hop Height & {policy['z_hop_type']}",
             "scope_tag": "Global · Tránh quệt mép",
             "object_id": "global",
             "category": "kinematics",
             "meaning": "Độ cao nhấc đầu phun khi di chuyển (mm)",
             "default_val": fmt_val(sys_def.get("z_hop", "0.4")),
             "author_val": fmt_val(orig_cfg.get("z_hop", "0.4")),
-            "proposed_val": "0.8",
-            "reason": "Nhấc thẳng đứng 0.8mm (Normal Lift) kết hợp tắt Reduce Infill Retraction giúp đầu phun vượt an toàn qua các mép overhang cong.",
+            "proposed_val": policy["z_hop"],
+            "reason": (
+                "Nhấc thẳng đứng 0.8mm (Normal Lift) kết hợp tắt Reduce Infill Retraction giúp đầu phun vượt an toàn qua các mép overhang cong."
+                if policy["z_hop_type"] == "Normal Lift"
+                else f"{mat_label} dễ kéo tơ khi nhấc cao thẳng đứng; Z-Hop {policy['z_hop']}mm kiểu {policy['z_hop_type']} (như profile gốc của Bambu) vẫn tránh quệt mép mà ít kéo tơ hơn."
+            ),
             "approved": True,
         },
         {
@@ -486,8 +528,12 @@ def build_baseline_audit(
             "meaning": "Khoảng cách Z giữa đỉnh Support và đáy mẫu (mm)",
             "default_val": fmt_val(sys_def.get("support_top_z_distance", "0.2")),
             "author_val": fmt_val(orig_cfg.get("support_top_z_distance", "0.2")),
-            "proposed_val": "0.14",
-            "reason": "Khe hở 0.14mm (< 1 layer) kết hợp 4 lớp Top Interface giúp đài đỡ khóa chặt mặt cầu không bị rơ lắc.",
+            "proposed_val": policy["support_top_z_distance"],
+            "reason": (
+                "Khe hở 0.14mm (< 1 layer) kết hợp 4 lớp Top Interface giúp đài đỡ khóa chặt mặt cầu không bị rơ lắc."
+                if policy["min_support_top_z_distance"] == 0
+                else f"{mat_label} dính chặt vào chính Support của nó; khe hở {policy['support_top_z_distance']}mm và Interface thưa hơn giúp bóc Support không làm rách bề mặt."
+            ),
             "approved": True,
         },
     ])
@@ -503,10 +549,34 @@ def build_baseline_audit(
             "meaning": "Gói cấu hình riêng cho ốc in 3D",
             "default_val": "2 walls / 200mm/s",
             "author_val": "no_brim / zig-zag",
-            "proposed_val": "Brim 5mm + 6 Concentric + 35mm/s",
+            "proposed_val": f"Brim 5mm (gap {policy['screw_brim_object_gap']}) + 6 Concentric + 35mm/s",
             "reason": "Brim 5mm nối liền 2 nửa đầu ốc bị rãnh tua-vít xẻ đôi; 100% Concentric chống rung và tốc độ 35mm/s giúp bước ren sắc nét.",
             "approved": True,
         })
+
+    # --- MATERIAL-SPECIFIC ITEMS ---
+    if policy["weak_layer_adhesion"] and (screw_objs or pinpoint_objs) and "nozzle_temperature" in sys_def:
+        vendor_nozzle = int(float(fmt_val(sys_def.get("nozzle_temperature", "220")).split(",")[0]))
+        settings_diff.append({
+            "key": "nozzle_temperature",
+            "label": "Nozzle Temperature (Nhiệt độ đầu phun)",
+            "scope_tag": "Global · Bám lớp PLA Lite",
+            "object_id": "global",
+            "category": "kinematics",
+            "meaning": "Nhiệt độ đầu phun các lớp sau Layer 1 (°C)",
+            "default_val": str(vendor_nozzle),
+            "author_val": fmt_val(orig_cfg.get("nozzle_temperature", vendor_nozzle)),
+            "proposed_val": str(vendor_nozzle + 5),
+            "reason": (
+                "PLA Lite bám lớp (trục Z) yếu hơn PLA Basic. Tăng 5°C giúp các lớp hàn chặt hơn "
+                "cho ốc vít và khớp nối chịu lực."
+            ),
+            "approved": True,
+        })
+
+    diagnostic_cards.extend(
+        build_material_advice_cards(orig_cfg, printer_preset, filament_preset, sys_def, has_screws=bool(screw_objs))
+    )
 
     # Compute initial scores
     safety_penalties = len(pinpoint_objs) * 14 + len(missing_sup_objs) * 12 + len(screw_objs) * 10 + len(tall_objs) * 8
@@ -534,6 +604,35 @@ def build_baseline_audit(
         "aesthetics_score_after": 95,
         "diagnostic_cards": diagnostic_cards,
         "settings_diff": settings_diff,
+    }
+
+
+def _bed_temp_setting(orig_cfg: dict[str, Any], sys_def: dict[str, Any], mat_label: str) -> dict[str, Any] | None:
+    """First-layer bed temperature item for the plate the file actually targets (`curr_bed_type`).
+    When the vendor marks that plate unsupported (value 0), the item targets Textured PEI instead,
+    matching the SWITCH_BED_PLATE card."""
+    bed = bed_type_of(orig_cfg)
+    key = f"{BED_TYPE_TEMP_KEY[bed]}_initial_layer"
+    if key not in sys_def:
+        return None  # Bambu Studio profiles not installed: no vendor value to propose
+    vendor = fmt_val(sys_def[key])
+    if vendor in ("0", "", "Auto"):
+        bed = DEFAULT_BED_TYPE
+        key = f"{BED_TYPE_TEMP_KEY[bed]}_initial_layer"
+        vendor = fmt_val(sys_def.get(key, "65"))
+    label = BED_TYPE_LABEL[bed]
+    return {
+        "key": key,
+        "label": f"{label} Plate Temp (°C)",
+        "scope_tag": f"Global · {label}",
+        "object_id": "global",
+        "category": "adhesion",
+        "meaning": f"Nhiệt độ bàn in {label} Layer 1 cho {mat_label}",
+        "default_val": vendor,
+        "author_val": fmt_val(orig_cfg.get(key, vendor)),
+        "proposed_val": vendor,
+        "reason": f"Bambu khuyến nghị {vendor}°C cho {mat_label} trên {label} với máy này, giúp Layer 1 bám chắc và không cong vênh mép.",
+        "approved": True,
     }
 
 
@@ -596,71 +695,21 @@ def apply_3mf_optimizations(
     diagnostic_cards: list[dict[str, Any]],
     settings_diff: list[dict[str, Any]],
     printer_preset: str = "Bambu Lab A1 0.4 nozzle",
-    filament_preset: str = "Bambu PLA Lite @BBL A1",
+    filament_preset: str = "PLA Lite",
+    slot_overrides: list[str | None] | None = None,
 ) -> dict[str, Any]:
     """
     Non-destructive 3MF patcher: applies only the user-approved diagnostic geometry actions
     and approved global/per-object slicer settings into `dst_path`.
+    `slot_overrides` optionally picks a filament per AMS slot (None keeps the author's slot).
     """
     telemetry = profile_3mf(src_path, include_preview_mesh=False)
     orig_cfg = dict(telemetry.get("project_settings", {}))
-    base_cfg = get_system_baseline(printer_preset, filament_preset, "0.16mm Optimal @BBL A1")
-
-    orig_colours = orig_cfg.get("filament_colour", [])
-    num_filaments = len(orig_colours) if isinstance(orig_colours, list) and len(orig_colours) > 0 else 1
-
-    # Keys that define multi-color AMS slots, purge matrix, prime tower, or machine geometry and must NOT be wiped
-    PRESERVE_ORIG_KEYS = {
-        "filament_colour",
-        "default_filament_colour",
-        "filament_colour_type",
-        "extruder_colour",
-        "flush_volumes_matrix",
-        "flush_volumes_vector",
-        "flush_multiplier",
-        "wiping_volumes_extruders",
-        "filament_map",
-        "filament_volume_map",
-        "enable_prime_tower",
-        "prime_tower_width",
-        "prime_tower_brim_width",
-        "prime_volume",
-        "wipe_tower_no_sparse_layers",
-        "printable_area",
-        "bed_exclude_area",
-        "head_wrap_detect_zone",
-        "extruder_ams_count",
-        "filament_dev_ams_drying_ams_limitations",
-        "filament_dev_ams_drying_temperature",
-        "filament_dev_ams_drying_time",
-        "inherits_group",
-        "upward_compatible_machine",
-        "different_settings_to_system",
-        "start_end_points",
-    }
-
-    cfg = dict(orig_cfg)
-    INTERNAL_PROFILE_KEYS = {"type", "name", "from", "instantiation", "inherits", "include", "setting_id", "description"}
-    for k, v in base_cfg.items():
-        if k in PRESERVE_ORIG_KEYS or k in INTERNAL_PROFILE_KEYS or k.startswith("machine_max_"):
-            continue
-        if orig_cfg and k not in cfg:
-            continue
-        orig_val = orig_cfg.get(k)
-        if isinstance(orig_val, list):
-            if len(orig_val) == num_filaments:
-                scalar_v = v[0] if isinstance(v, list) and len(v) > 0 else v
-                cfg[k] = [scalar_v] * num_filaments
-            elif isinstance(v, list) and len(v) == len(orig_val):
-                cfg[k] = v
-            # Otherwise keep orig_val so multi-element geometry/AMS arrays are never truncated
-        else:
-            cfg[k] = v[0] if isinstance(v, list) and len(v) == 1 else v
-
-    cfg["printer_settings_id"] = printer_preset
-    cfg["filament_settings_id"] = [filament_preset] * num_filaments
-    if num_filaments == 1:
-        cfg["enable_prime_tower"] = "0"
+    printer_preset = normalize_printer(printer_preset)
+    policy = policy_for(filament_preset)
+    cfg, slot_plan, filament_keys = build_patched_config(orig_cfg, printer_preset, filament_preset, slot_overrides)
+    num_filaments = len(cfg.get("filament_settings_id") or [None])
+    vendor_filament = get_system_baseline("", resolve_filament_preset(printer_preset, filament_preset), "")
 
     # Parse approved Diagnostic Geometry Actions
     approved_actions = {c["action_type"]: c for c in diagnostic_cards if c.get("approved")}
@@ -681,8 +730,11 @@ def apply_3mf_optimizations(
         cfg["arc_fitting"] = "1"
     if do_bridge_cooling:
         cfg["bridge_speed"] = "25"
-        cfg["slow_down_layer_time"] = ["10"] * num_filaments
-        cfg["overhang_fan_speed"] = ["100"] * num_filaments
+        set_filament_key(cfg, "slow_down_layer_time", "10", slot_plan, filament_keys, num_filaments)
+        if policy["force_full_overhang_fan"]:
+            set_filament_key(cfg, "overhang_fan_speed", "100", slot_plan, filament_keys, num_filaments)
+    if "SWITCH_BED_PLATE" in approved_actions:
+        cfg["curr_bed_type"] = DEFAULT_BED_TYPE
     if do_rotate_yaw:
         cfg["default_acceleration"] = "4000"
         cfg["travel_acceleration"] = "4000"
@@ -693,7 +745,9 @@ def apply_3mf_optimizations(
         if not s.get("approved"):
             continue
         key = s["key"]
-        val = str(s["proposed_val"]).strip()
+        val = guard_material_value(key, str(s["proposed_val"]).strip(), policy, vendor_filament)
+        if val is None:
+            continue
         oid = s.get("object_id", "global")
 
         if oid == "global":
@@ -708,7 +762,7 @@ def apply_3mf_optimizations(
                 num_val = val.split()[0]
                 z_len = len(cfg["z_hop"]) if isinstance(cfg.get("z_hop"), list) and len(cfg["z_hop"]) > 0 else num_filaments
                 cfg["z_hop"] = [num_val] * z_len
-                cfg["z_hop_types"] = ["Normal Lift"] * z_len
+                cfg["z_hop_types"] = [policy["z_hop_type"]] * z_len
                 cfg["reduce_infill_retraction_mode"] = "Disabled"
                 cfg["reduce_crossing_wall"] = "1"
             elif key == "brim_width":
@@ -728,10 +782,9 @@ def apply_3mf_optimizations(
                 cfg["support_top_z_distance"] = num_val
                 cfg["support_bottom_z_distance"] = num_val
                 cfg["support_interface_top_layers"] = "4"
-                cfg["support_interface_spacing"] = "0.15"
+                cfg["support_interface_spacing"] = policy["support_interface_spacing"]
             elif key in cfg and isinstance(cfg[key], list):
-                slot_len = len(cfg[key]) if len(cfg[key]) > 0 else num_filaments
-                cfg[key] = [val.split()[0]] * slot_len
+                set_filament_key(cfg, key, val.split()[0], slot_plan, filament_keys, num_filaments)
             else:
                 cfg[key] = val
         else:
@@ -753,7 +806,7 @@ def apply_3mf_optimizations(
             per_object_patches.setdefault(oid, {}).update({
                 "brim_type": "outer_only",
                 "brim_width": "5",
-                "brim_object_gap": "0.04",
+                "brim_object_gap": policy["screw_brim_object_gap"],
                 "wall_loops": "6",
                 "sparse_infill_density": "100%",
                 "skeleton_infill_density": "100%",
@@ -767,8 +820,8 @@ def apply_3mf_optimizations(
         if do_ironing_flat and "FLAT_HORIZONTAL_TOP" in flags:
             per_object_patches.setdefault(oid, {}).update({
                 "ironing_type": "topmost",
-                "ironing_flow": "12%",
-                "ironing_speed": "30",
+                "ironing_flow": policy["ironing_flow"],
+                "ironing_speed": policy["ironing_speed"],
                 "ironing_spacing": "0.15",
             })
         if do_dome_concentric and "DOMED_CURVATURE_TOP" in flags:

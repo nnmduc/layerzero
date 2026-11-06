@@ -70,7 +70,9 @@ export interface DiagnosticCard {
     | 'SCARF_SEAM_CYLINDER'
     | 'FUZZY_SKIN'
     | 'ARACHNE_FINE_DETAIL'
-    | 'BRIDGE_AND_NECK_COOLING';
+    | 'BRIDGE_AND_NECK_COOLING'
+    | 'SWITCH_BED_PLATE'
+    | 'MATERIAL_ADVICE';
   param_value: number;
   approved: boolean;
 }
@@ -129,4 +131,38 @@ export interface AgentEnginesResponse {
   default_engine: 'claude' | 'agy' | 'engine';
   has_multiple_clis: boolean;
   available_count: number;
+}
+
+/** One AMS filament slot as written by the model's author, plus what LayerZero will retarget it to. */
+export interface FilamentSlotInfo {
+  index: number;
+  preset: string;
+  type: string;
+  colour: string;
+  family: 'PLA' | 'PLA_LITE' | 'PETG' | 'SUPPORT' | 'OTHER';
+  role: 'model' | 'support';
+  /** UI filament key ('PLA Lite' | 'PLA Basic' | 'PETG HF'), or null when the slot keeps the author's settings. */
+  target_filament: string | null;
+  target_preset: string | null;
+}
+
+/** Resolved printer / filament / plate context returned by the backend for the loaded file. */
+export interface MaterialContext {
+  printer_preset: string;
+  printer_label: string;
+  enclosed: boolean;
+  filament: string;
+  filament_preset: string;
+  family: 'PLA' | 'PLA_LITE' | 'PETG' | 'SUPPORT' | 'OTHER';
+  bed_type: string;
+  bed_label: string;
+  slots: FilamentSlotInfo[];
+  mixed_model_families: boolean;
+}
+
+export interface PresetOptions {
+  printers: { id: string; label: string; enclosed: boolean }[];
+  filaments: { id: string; label: string; family: string; presets: Record<string, string> }[];
+  default_printer: string;
+  default_filament: string;
 }

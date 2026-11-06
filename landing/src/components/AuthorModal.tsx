@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, FacebookLogo, LinkedinLogo, GithubLogo, Heart, Sparkle } from '@phosphor-icons/react';
+import { X, FacebookLogo, LinkedinLogo, GithubLogo, Heart, Code } from '@phosphor-icons/react';
 
 interface AuthorModalProps {
   isOpen: boolean;
@@ -59,22 +59,16 @@ export const AuthorModal: React.FC<AuthorModalProps> = ({ isOpen, onClose }) => 
 
             {/* Header / Avatar */}
             <div className="flex items-center gap-4 mb-5">
-              <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#0071E3] to-[#40A9FF] text-white flex items-center justify-center shadow-md font-bold text-xl">
-                <span>Đ</span>
-                <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#1C1C1E] flex items-center justify-center">
-                  <Heart size={10} weight="fill" className="text-white" />
+              <div className="relative w-12 h-12 rounded-2xl bg-[#0071E3]/10 text-[#0071E3] dark:text-[#2997FF] flex items-center justify-center shadow-sm">
+                <Code size={22} weight="bold" />
+                <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white dark:border-[#1C1C1E] flex items-center justify-center">
+                  <Heart size={8} weight="fill" className="text-white" />
                 </span>
               </div>
               <div>
-                <div className="flex items-center gap-1.5">
-                  <h3 id="author-title" className="text-lg font-bold tracking-tight">
-                    Nguyễn Nam Đức
-                  </h3>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#0071E3]/10 text-[#0071E3] dark:text-[#2997FF] text-[11px] font-mono font-semibold">
-                    <Sparkle size={10} weight="fill" />
-                    <span>Tác giả</span>
-                  </span>
-                </div>
+                <h3 id="author-title" className="text-lg font-bold tracking-tight">
+                  Đôi lời từ tác giả
+                </h3>
                 <p className="text-xs text-[#6E6E73] dark:text-[#98989D] mt-0.5">
                   Software Engineer · Đam mê nghiên cứu & in 3D
                 </p>

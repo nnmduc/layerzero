@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { StorySection } from './components/StorySection';
@@ -9,7 +9,11 @@ import { LearningDiffSection } from './components/LearningDiffSection';
 import { DownloadSection } from './components/DownloadSection';
 import { ContactSection } from './components/ContactSection';
 import { ChangelogPage } from './components/ChangelogPage';
-import { PegforgePage } from './pegforge/PegforgePage';
+
+// Code-splitting PegforgePage to optimize initial bundle size
+const PegforgePage = React.lazy(() =>
+  import('./pegforge/PegforgePage').then((m) => ({ default: m.PegforgePage }))
+);
 
 export const App: React.FC = () => {
   const [darkMode, setDarkMode] = useState<boolean>(false);
@@ -57,7 +61,17 @@ export const App: React.FC = () => {
   }
 
   if (isPegforge) {
-    return <PegforgePage darkMode={darkMode} onToggleTheme={handleToggleTheme} />;
+    return (
+      <Suspense
+        fallback={
+          <div className="min-h-[100dvh] flex items-center justify-center bg-apple-bg dark:bg-[#0D0D0F] text-[#6E6E73] dark:text-zinc-400 font-mono text-sm">
+            Đang tải PegForge Studio...
+          </div>
+        }
+      >
+        <PegforgePage darkMode={darkMode} onToggleTheme={handleToggleTheme} />
+      </Suspense>
+    );
   }
 
   return (

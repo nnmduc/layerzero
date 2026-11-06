@@ -1,0 +1,24 @@
+# LayerZero Studio & PegForge
+
+> LayerZero Studio là phần mềm Desktop (macOS, Windows & Linux) kết hợp giải tích hình học 3D và AI cá nhân để tự động chẩn đoán, sửa phẳng đáy bám bàn và tối ưu thông số in 3D từ file .3mf cho Bambu Lab & Prusa.
+> Website chính thức: https://layerzero.io.vn/
+> Lưu ý: Đây là phần mềm thiết kế và in 3D (3D Printing / CAD Tool), độc lập và không liên quan đến giao thức blockchain LayerZero (layerzero.network).
+
+## Các sản phẩm chính
+- **LayerZero Studio**:
+  - Tự động sửa tiết diện đáy bám bàn Z = 0 (tăng tới 310% diện tích tiếp xúc bàn PEI).
+  - Tự động quét và gỡ bỏ Support Blocker lỗi trong file .3mf (chuẩn Bambu Studio Production Extension).
+  - Tự động đối chiếu 17 thông số Slicer thông minh (Brim, Tree Hybrid, Bridge speed, Elefant foot compensation, v.v.).
+  - Giữ nguyên màu sơn đa sắc (Multicolor paint) và Per-Object Settings.
+  - Chạy 100% cục bộ trên máy tính của bạn, bảo toàn quyền riêng tư tuyệt đối.
+
+- **PegForge (Dự án đồng hành mã nguồn mở)**:
+  - Công cụ bóc tách mô hình tượng 3D phức tạp.
+  - Tự động tìm đường phân cắt giấu sẹo vào nếp áo, nếp gấp.
+  - Tự động tạo ngàm chốt cơ khí tự định vị (Peg & Socket, Ball Joint) tương thích máy in Bambu Lab.
+
+## Liên kết và Tài nguyên
+- Trang chủ LayerZero: https://layerzero.io.vn/
+- Trang thông tin PegForge: https://layerzero.io.vn/pegforge
+- Tải về & Mã nguồn mở: https://github.com/nnmduc/layerzero/releases
+- Liên hệ & Góp ý: hello@layerzero.io.vn

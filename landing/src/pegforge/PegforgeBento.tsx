@@ -83,8 +83,12 @@ export const PegforgeBento: React.FC = () => {
             </div>
             <div className="lg:col-span-5">
               <img
-                src="/images/pegforge/parts-flatlay.png"
+                src="/images/pegforge/parts-flatlay.webp"
                 alt="Các chi tiết tượng anime sau khi cắt và tạo chốt được xếp gọn trên khay in"
+                width="1024"
+                height="680"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-auto object-cover rounded-2xl border border-apple-border dark:border-[rgba(255,255,255,0.09)]"
               />
             </div>

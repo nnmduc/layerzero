@@ -155,9 +155,9 @@ export const PegforgeRegistration: React.FC = () => {
           <div className="p-4 rounded-2xl bg-[#0071E3]/5 dark:bg-[#0071E3]/10 border border-[#0071E3]/20 mb-8 flex items-start gap-3.5">
             <Info size={22} className="text-[#0071E3] shrink-0 mt-0.5" weight="bold" />
             <div>
-              <h4 className="text-sm font-bold text-[#1D1D1F] dark:text-[#F5F5F7] mb-1">
+              <h3 className="text-sm font-bold text-[#1D1D1F] dark:text-[#F5F5F7] mb-1">
                 {config.title}
-              </h4>
+              </h3>
               <p className="text-xs text-[#6E6E73] dark:text-[#98989D] leading-relaxed">
                 {config.desc}
               </p>

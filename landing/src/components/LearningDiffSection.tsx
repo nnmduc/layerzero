@@ -226,8 +226,12 @@ export const LearningDiffSection: React.FC = () => {
             {/* Artwork with Animated Scan Line & Active Parameter Tag */}
             <div className="relative rounded-2xl overflow-hidden border border-[#1D1D1F]/[0.08] dark:border-white/[0.1] bg-[#141416] h-52">
               <img
-                src="/images/artwork-3d-layers.jpg"
+                src="/images/artwork-3d-layers.webp"
                 alt="Minh họa giải phẫu lớp cắt 3D và thông số Slicer"
+                width="1440"
+                height="800"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover"
               />
               {!shouldReduceMotion && (

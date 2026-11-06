@@ -161,8 +161,12 @@ export const PegforgeJointWorkbench: React.FC = () => {
           <div className="lg:col-span-5 flex flex-col justify-between h-full space-y-4">
             <div className="relative rounded-2xl overflow-hidden aspect-[16/10] bg-zinc-950 border border-apple-border dark:border-[rgba(255,255,255,0.09)]">
               <img
-                src="/images/pegforge/macro-joint.jpg"
+                src="/images/pegforge/macro-joint.webp"
                 alt="Chụp macro cận cảnh khớp cơ khí PEG_HEX và BALL_JOINT resin siêu mịn"
+                width="1280"
+                height="800"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-4">

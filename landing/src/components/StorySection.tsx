@@ -242,8 +242,12 @@ export const StorySection: React.FC = () => {
             {/* Concept Artwork Strip */}
             <div className="relative rounded-2xl overflow-hidden border border-[#1D1D1F]/[0.06] dark:border-white/[0.08] bg-[#F5F5F7] dark:bg-zinc-900 h-44 sm:h-48">
               <img
-                src="/images/artwork-ai-bridge.jpg"
+                src="/images/artwork-ai-bridge.webp"
                 alt="Minh họa lăng kính LayerZero chuyển hóa lưới 3D thành bản in hoàn thiện"
+                width="1440"
+                height="400"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-x-0 bottom-0 p-3.5 bg-gradient-to-t from-black/60 via-black/25 to-transparent text-white text-[13px] font-medium flex items-center justify-between">

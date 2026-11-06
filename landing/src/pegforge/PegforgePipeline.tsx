@@ -18,8 +18,12 @@ const PIPELINE_STEPS: PipelineStepData[] = [
       <div className="space-y-4">
         <div className="relative rounded-2xl overflow-hidden aspect-[16/9] bg-zinc-950 border border-apple-border dark:border-[rgba(255,255,255,0.09)]">
           <img
-            src="/images/pegforge/semantic-anatomy.jpg"
+            src="/images/pegforge/semantic-anatomy.webp"
             alt="Mô phỏng phân tách giải phẫu nhân vật AI trên mesh 3D"
+            width="1280"
+            height="720"
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-4">

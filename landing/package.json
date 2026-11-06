@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 5174",
-    "build": "vite build && mkdir -p dist/pegforge && cp dist/index.html dist/pegforge/index.html",
+    "build": "node scripts/generate-sitemap.js && vite build && mkdir -p dist/pegforge dist/changelog && cp dist/index.html dist/pegforge/index.html && cp dist/index.html dist/changelog/index.html",
     "preview": "vite preview --port 4173"
   },
   "dependencies": {

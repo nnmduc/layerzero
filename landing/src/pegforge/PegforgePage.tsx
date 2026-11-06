@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Navbar } from '../components/Navbar';
 import { PegforgeHero } from './PegforgeHero';
 import { PegforgeDemoVideo } from './PegforgeDemoVideo';
@@ -15,6 +15,24 @@ interface PegforgePageProps {
 }
 
 export const PegforgePage: React.FC<PegforgePageProps> = ({ darkMode, onToggleTheme }) => {
+  useEffect(() => {
+    const prevTitle = document.title;
+    document.title = 'PegForge - Bóc tách mô hình & Tạo khớp in 3D cho Bambu Lab | LayerZero Studio';
+
+    let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    const prevCanonical = canonical?.href;
+    if (canonical) {
+      canonical.href = 'https://layerzero.io.vn/pegforge';
+    }
+
+    return () => {
+      document.title = prevTitle;
+      if (canonical && prevCanonical) {
+        canonical.href = prevCanonical;
+      }
+    };
+  }, []);
+
   return (
     <div className="min-h-[100dvh] flex flex-col bg-apple-bg dark:bg-[#0D0D0F] text-[#1D1D1F] dark:text-[#F5F5F7] transition-colors duration-300">
       {/* Top Banner */}

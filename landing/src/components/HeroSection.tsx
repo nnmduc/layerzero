@@ -17,7 +17,7 @@ const APP_SCREENSHOT_TABS = [
     id: 'full-audit',
     label: 'Chẩn đoán 3D & Diff',
     icon: Stack,
-    src: '/images/screenshot-app-full-audit.png',
+    src: '/images/screenshot-app-full-audit.webp',
     alt: 'Giao diện thực tế của LayerZero Studio hiển thị Chẩn đoán Morphology, lưới 3D khớp cầu và bảng đối chiếu 17 thông số Slicer',
     caption:
       'Giao diện thực tế: Quét 9 chi tiết Triceratops (33.85 MB), tự động phát hiện đáy khớp cầu Z = 0 và đối chiếu 17 thông số Slicer.',
@@ -26,7 +26,7 @@ const APP_SCREENSHOT_TABS = [
     id: 'xray-bottom',
     label: 'Soi xuyên đáy Z = 0',
     icon: Eye,
-    src: '/images/screenshot-app-xray.png',
+    src: '/images/screenshot-app-xray.webp',
     alt: 'Chế độ X-Ray của LayerZero Studio nhìn xuyên từ mặt bàn PEI lên đáy chi tiết để kiểm tra tiết diện bám bàn Z = 0 và vành Support',
     caption:
       'Chế độ X-Ray: Xoay camera nhìn xuyên từ mặt bàn PEI lên đáy mô hình để kiểm tra trực quan vùng cắt phẳng Z = 0.80mm (màu xanh lá) và đài đỡ Support 360 độ.',
@@ -35,7 +35,7 @@ const APP_SCREENSHOT_TABS = [
     id: 'ai-stream',
     label: 'Luồng suy luận agy AI',
     icon: Sparkle,
-    src: '/images/screenshot-app-ai-stream.png',
+    src: '/images/screenshot-app-ai-stream.webp',
     alt: 'Tiến trình suy luận trực tiếp của agy AI bên trong LayerZero Studio',
     caption:
       'Unleashed AI Mode: Kết nối trực tiếp gói AI cá nhân trên máy tính của bạn (macOS, Windows & Linux) để đọc sâu cấu hình XML/JSON và giải thích từng quyết định kỹ thuật.',
@@ -44,7 +44,7 @@ const APP_SCREENSHOT_TABS = [
     id: 'dark-mode',
     label: 'Chế độ Tối',
     icon: Moon,
-    src: '/images/screenshot-app-dark-mode.png',
+    src: '/images/screenshot-app-dark-mode.webp',
     alt: 'Giao diện Dark Mode của phần mềm LayerZero Studio đa nền tảng',
     caption:
       'Giao diện Dark Mode đồng bộ đa nền tảng (macOS, Windows & Linux) giúp làm việc dịu mắt trong các phiên tinh chỉnh mô hình ban đêm.',
@@ -69,12 +69,13 @@ export const HeroSection: React.FC = () => {
               className="lg:col-span-5 flex flex-col items-start text-left"
             >
               {/* Element 1: Eyebrow (1 of 3 allowed across the entire page) */}
-              <p className="text-[11.5px] font-mono uppercase tracking-[0.18em] text-[#0071E3] dark:text-[#2997FF] font-semibold mb-4">
+              <p className="text-[11.5px] font-mono uppercase tracking-[0.18em] text-[#0062C4] dark:text-[#2997FF] font-semibold mb-4">
                 LAYERZERO STUDIO · MACOS · WINDOWS · LINUX
               </p>
 
               {/* Element 2: Headline (max 2 lines on desktop) */}
               <h1 className="text-4xl sm:text-5xl lg:text-[48px] font-bold tracking-tight text-[#1D1D1F] dark:text-[#F5F5F7] leading-[1.08] mb-5">
+                <span className="sr-only">LayerZero Studio: Trợ lý AI tối ưu file in 3D .3mf - </span>
                 In 3D đẹp ngay từ đầu. Vừa làm vừa hiểu sâu.
               </h1>
 
@@ -114,13 +115,17 @@ export const HeroSection: React.FC = () => {
                 <span className="text-[12.5px] font-medium text-[#6E6E73] dark:text-zinc-400">
                   Ảnh chụp trực tiếp từ ứng dụng LayerZero Studio v2.0:
                 </span>
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div role="tablist" aria-label="Các góc nhìn thực tế ứng dụng" className="flex flex-wrap items-center gap-1.5">
                   {APP_SCREENSHOT_TABS.map((tab, idx) => {
                     const IconComp = tab.icon;
                     return (
                       <button
                         key={tab.id}
                         type="button"
+                        role="tab"
+                        aria-selected={activeTabIdx === idx}
+                        aria-controls="hero-screenshot-frame"
+                        id={`tab-${tab.id}`}
                         onClick={() => setActiveTabIdx(idx)}
                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all active:scale-[0.98] whitespace-nowrap ${
                           activeTabIdx === idx
@@ -137,12 +142,15 @@ export const HeroSection: React.FC = () => {
               </div>
 
               {/* macOS Window Frame around Real Live Screenshot */}
-              <div className="rounded-3xl overflow-hidden apple-card-elevated p-2 sm:p-3">
+              <div id="hero-screenshot-frame" role="tabpanel" aria-labelledby={`tab-${activeShot.id}`} className="rounded-3xl overflow-hidden apple-card-elevated p-2 sm:p-3">
                 <div className="rounded-2xl overflow-hidden border border-[#1D1D1F]/[0.08] dark:border-white/[0.1] bg-[#F5F5F7] dark:bg-[#0D0D0F]">
                   <img
                     key={activeShot.src}
                     src={activeShot.src}
                     alt={activeShot.alt}
+                    width="1440"
+                    height="900"
+                    fetchPriority="high"
                     className="w-full h-auto block object-cover"
                   />
                 </div>

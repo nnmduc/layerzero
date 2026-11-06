@@ -140,8 +140,10 @@ export const PegforgeHero: React.FC = () => {
                 {previewMode === 'exploded' && (
                   <motion.img
                     key="exploded"
-                    src="/images/pegforge/hero-exploded.jpg"
+                    src="/images/pegforge/hero-exploded.webp"
                     alt="Mô hình tượng bóc tách đa chi tiết lơ lửng trên mặt bàn in PEI"
+                    width="1280"
+                    height="800"
                     initial={{ opacity: 0, scale: 1.05 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.98 }}
@@ -179,8 +181,10 @@ export const PegforgeHero: React.FC = () => {
                 {previewMode === 'assembled' && (
                   <motion.img
                     key="assembled"
-                    src="/images/pegforge/hero-figurine.png"
+                    src="/images/pegforge/hero-figurine.webp"
                     alt="Mô hình tượng nguyên bản đã lắp ráp hoàn chỉnh"
+                    width="1280"
+                    height="800"
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 1.02 }}

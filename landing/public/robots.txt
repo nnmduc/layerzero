@@ -1,0 +1,6 @@
+# Robots.txt for LayerZero Studio (https://layerzero.io.vn/)
+User-agent: *
+Allow: /
+
+# Sitemap index
+Sitemap: https://layerzero.io.vn/sitemap.xml

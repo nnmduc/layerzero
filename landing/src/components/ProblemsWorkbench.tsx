@@ -570,6 +570,10 @@ export const ProblemsWorkbench: React.FC = () => {
                     <img
                       src={item.image}
                       alt={item.shortTitle}
+                      width="48"
+                      height="48"
+                      loading="lazy"
+                      decoding="async"
                       className={`w-12 h-12 rounded-xl object-cover shrink-0 border ${
                         isSelected
                           ? 'border-white/30'
@@ -582,7 +586,7 @@ export const ProblemsWorkbench: React.FC = () => {
                       </div>
                       <div
                         className={`text-[11px] font-mono mt-0.5 truncate ${
-                          isSelected ? 'text-white/80' : 'text-[#6E6E73] dark:text-zinc-400'
+                          isSelected ? 'text-white' : 'text-[#555558] dark:text-zinc-400'
                         }`}
                       >
                         {item.actionCode}
@@ -592,8 +596,8 @@ export const ProblemsWorkbench: React.FC = () => {
                   <span
                     className={`text-[10.5px] font-mono px-2.5 py-0.5 rounded-full whitespace-nowrap shrink-0 ${
                       isSelected
-                        ? 'bg-white/20 text-white'
-                        : 'bg-[#0071E3]/10 text-[#0071E3] dark:text-[#2997FF]'
+                        ? 'bg-white/25 text-white font-medium'
+                        : 'bg-[#0071E3]/10 text-[#0062C4] dark:text-[#2997FF] font-medium'
                     }`}
                   >
                     {item.pillar === 'safety' ? 'An toàn' : 'Thẩm mỹ'}

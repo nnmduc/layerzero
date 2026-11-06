@@ -66,8 +66,12 @@ export const FeaturesBento: React.FC = () => {
             {/* Visual Artwork with Animated Scanning Plane */}
             <div className="relative rounded-2xl overflow-hidden aspect-[16/9] bg-white dark:bg-zinc-900 border border-[#1D1D1F]/[0.06] dark:border-white/[0.08]">
               <img
-                src="/images/artwork-3d-layers.jpg"
+                src="/images/artwork-3d-layers.webp"
                 alt="Minh họa lát cắt giải tích hình học 3D tại Z = 0.80mm và đỉnh Concentric"
+                width="1440"
+                height="810"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover"
               />
               {!shouldReduceMotion && (
@@ -135,8 +139,12 @@ export const FeaturesBento: React.FC = () => {
 
             <div className="rounded-2xl overflow-hidden border border-[#1D1D1F]/[0.08] dark:border-white/[0.1] bg-white dark:bg-[#161618] shadow-sm">
               <img
-                src="/images/screenshot-app-ai-stream.png"
+                src="/images/screenshot-app-ai-stream.webp"
                 alt="Luồng suy luận trực tiếp của agy AI trong LayerZero Studio"
+                width="1440"
+                height="632"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-36 object-cover object-top"
               />
             </div>

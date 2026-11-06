@@ -13,11 +13,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/app-icon.png" />
-    <title>LayerZero Studio - Trợ lý AI tối ưu in 3D từ file .3mf</title>
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="canonical" href="https://layerzero.io.vn/" />
+
+    <title>LayerZero Studio - Trợ lý AI tối ưu in 3D từ file .3mf cho Bambu Lab & Prusa</title>
     <meta
       name="description"
-      content="LayerZero Studio kết hợp giải tích hình học 3D và AI cá nhân của bạn để tự động kiểm tra, sửa phẳng đáy bám bàn và tối ưu thông số in 3D ngay từ lần in đầu tiên."
+      content="LayerZero Studio kết hợp giải tích hình học 3D và AI cá nhân để tự động chẩn đoán, sửa phẳng đáy bám bàn Z=0 và tối ưu 17 thông số Slicer cho Bambu Lab & Prusa."
     />
+    <meta
+      name="keywords"
+      content="LayerZero Studio, tối ưu in 3D, sửa file 3mf, Bambu Lab, Bambu Studio, PrusaSlicer, sửa lỗi bám bàn in 3D, PegForge, AI in 3D"
+    />
+    <meta name="author" content="Nguyễn Nam Minh Đức" />
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
@@ -45,8 +53,62 @@
       content="In 3D đẹp ngay từ đầu. Giải phẫu file .3mf bằng toán học 3D và AI cá nhân để tự động kiểm tra, sửa phẳng đáy bám bàn và tối ưu 17 thông số Slicer cho Bambu Lab & Prusa."
     />
     <meta name="twitter:image" content="https://layerzero.io.vn/og-image.png" />
+
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://layerzero.io.vn/#software",
+          "name": "LayerZero Studio",
+          "operatingSystem": "macOS, Windows, Linux",
+          "applicationCategory": "DesignApplication",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "description": "Trợ lý AI tối ưu in 3D từ file .3mf kết hợp giải tích hình học 3D và AI cá nhân để tự động kiểm tra, sửa phẳng đáy bám bàn và đối chiếu thông số Slicer cho Bambu Lab & Prusa.",
+          "softwareVersion": "2.1.0",
+          "downloadUrl": "https://layerzero.io.vn/#tai-ve",
+          "author": {
+            "@type": "Person",
+            "name": "Nguyễn Nam Minh Đức",
+            "url": "https://github.com/nnmduc"
+          }
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://layerzero.io.vn/#organization",
+          "name": "LayerZero 3D Studio",
+          "url": "https://layerzero.io.vn/",
+          "logo": "https://layerzero.io.vn/app-icon.png",
+          "sameAs": [
+            "https://github.com/nnmduc/layerzero"
+          ]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://layerzero.io.vn/#website",
+          "url": "https://layerzero.io.vn/",
+          "name": "LayerZero Studio - Phần mềm tối ưu in 3D",
+          "inLanguage": "vi"
+        }
+      ]
+    }
+    </script>
   </head>
   <body class="bg-[#F5F5F7] dark:bg-[#0D0D0F] text-[#1D1D1F] dark:text-[#F5F5F7] font-sans transition-colors duration-300">
+    <noscript>
+      <div style="max-width: 800px; margin: 40px auto; padding: 24px; font-family: sans-serif; line-height: 1.6;">
+        <h1>LayerZero Studio - Trợ lý AI tối ưu in 3D từ file .3mf</h1>
+        <p>LayerZero Studio kết hợp giải tích hình học 3D và AI cá nhân để tự động kiểm tra, sửa phẳng đáy bám bàn Z = 0 và đối chiếu 17 thông số Slicer cho Bambu Lab & Prusa.</p>
+        <p>Tải ứng dụng miễn phí dành cho macOS, Windows và Linux tại <a href="https://github.com/nnmduc/layerzero/releases/latest">GitHub Releases</a>.</p>
+        <p>PegForge - Công cụ bóc tách mô hình tượng 3D và tạo khớp cơ khí tự động: <a href="/pegforge">Xem chi tiết PegForge</a>.</p>
+      </div>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

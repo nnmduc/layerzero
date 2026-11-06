@@ -52,7 +52,7 @@ export const PROBLEM_CASES: ProblemCase[] = [
       'Khớp cầu chạm bàn chỉ vài mm² rất dễ lắc bung. LayerZero tự động vát phẳng 0.80mm dưới đáy mà vẫn giữ nguyên biên dạng khớp.',
     learnedConcept:
       'Độ bám bàn bền vững quyết định bởi tiết diện tiếp xúc tại Layer 1.',
-    image: '/images/prob-flatten-bottom.jpg',
+    image: '/images/prob-flatten-bottom.webp',
     metrics: [
       { label: 'Tiết diện Z = 0', before: '2.4 x 2.1 mm', after: '9.8 x 9.4 mm (+310%)' },
       { label: 'Lát cắt đáy Z', before: '0.00 mm (Đáy cầu)', after: '0.80 mm (Đáy phẳng)' },
@@ -75,7 +75,7 @@ export const PROBLEM_CASES: ProblemCase[] = [
       'Tự động quét thuộc tính paint_supports trong file .3mf, xóa các vùng chặn lỗi ở Z <= 8mm và sơn bổ sung nôi đỡ ôm sát gầm.',
     learnedConcept:
       'Tree Hybrid kết hợp khe hở Z-Top 0.20mm giúp đỡ vững mà bóc nhẹ bằng tay.',
-    image: '/images/prob-reinforce-supports.jpg',
+    image: '/images/prob-reinforce-supports.webp',
     metrics: [
       { label: 'Blocker lỗi ở đế', before: '142 tam giác chặn', after: '0 (Đã gỡ sạch)' },
       { label: 'Đài đỡ gầm Z <= 8mm', before: 'Hẫng tự do', after: 'Bọc 360 độ' },
@@ -98,7 +98,7 @@ export const PROBLEM_CASES: ProblemCase[] = [
       'Chuyển file từ máy CoreXY sang máy bàn trượt (A1) dễ làm đổ vật cao. Phần mềm tự xoay chi tiết song song trục Y và hạ gia tốc.',
     learnedConcept:
       'Đặt cạnh dài song song trục trượt Y giúp triệt tiêu mô-men quán tính lật.',
-    image: '/images/prob-bed-slinger.jpg',
+    image: '/images/prob-bed-slinger.webp',
     metrics: [
       { label: 'Gia tốc Travel', before: '10,000 mm/s²', after: '4,000 mm/s²' },
       { label: 'Hướng đặt vật cao', before: 'Ngang trục Y', after: 'Xoay dọc trục Y (90°)' },
@@ -121,7 +121,7 @@ export const PROBLEM_CASES: ProblemCase[] = [
       'Chỉ gán Per-Object Settings cho đúng chi tiết ốc: 6 Walls đồng tâm chống gãy xoắn, Brim 5mm giữ rãnh tua-vít và mở rộng nhẹ lỗ ren.',
     learnedConcept:
       'Dùng Per-Object Override giúp gia cố chi tiết chịu lực mà không làm chậm cả bàn in.',
-    image: '/images/prob-screw-tolerance.jpg',
+    image: '/images/prob-screw-tolerance.webp',
     metrics: [
       { label: 'Kết cấu thân ốc', before: '2 Walls + Infill rỗng', after: '6 Walls Concentric đặc' },
       { label: 'Tốc độ in bước ren', before: '150 mm/s', after: '35 mm/s' },
@@ -144,7 +144,7 @@ export const PROBLEM_CASES: ProblemCase[] = [
       'Phát hiện pháp tuyến vòm thoai thoải ở đỉnh (0.70 < normal_z < 0.98) để chuyển sang Layer 0.16mm và mẫu lấp Concentric.',
     learnedConcept:
       'Đường nhựa Concentric chạy ôm theo độ cong giúp xóa rãnh bậc thang trên đỉnh vòm.',
-    image: '/images/prob-dome-stair.jpg',
+    image: '/images/prob-dome-stair.webp',
     metrics: [
       { label: 'Độ dày lớp cắt', before: '0.20 mm', after: '0.16 mm Optimal' },
       { label: 'Mẫu mặt đỉnh', before: 'Monotonic Line', after: 'Concentric (Đồng tâm)' },
@@ -167,7 +167,7 @@ export const PROBLEM_CASES: ProblemCase[] = [
       'Tự động đo diện tích mặt phẳng đỉnh (normal_z >= 0.995) để bật Ironing riêng cho đúng chi tiết đó với thông số theo vật liệu (PLA hoặc PETG).',
     learnedConcept:
       'Ironing dùng đầu phun nóng đi là lại với 12% lưu lượng nhựa để xóa sạch rãnh sợi.',
-    image: '/images/prob-flat-ironing.jpg',
+    image: '/images/prob-flat-ironing.webp',
     metrics: [
       { label: 'Phạm vi Ironing', before: 'Tắt / Toàn cục', after: 'Per-Object Topmost' },
       { label: 'Lưu lượng & Tốc độ', before: '10% @ 15 mm/s', after: '12% @ 30 mm/s' },
@@ -190,7 +190,7 @@ export const PROBLEM_CASES: ProblemCase[] = [
       'Chi tiết trụ tròn không có góc khuất sẽ được vát mỏng hai đầu mối nối lớp (Scarf Joint) kết hợp đường chạy cung tròn G2/G3.',
     learnedConcept:
       'Scarf Joint chồng mép nhựa vát nghiêng giúp xóa đường sẹo dọc trên mặt trụ.',
-    image: '/images/prob-cylinder-seam.jpg',
+    image: '/images/prob-cylinder-seam.webp',
     metrics: [
       { label: 'Kiểu mối nối lớp', before: 'Butt Joint (Lộ sẹo)', after: 'Scarf Joint External' },
       { label: 'Đường chạy mặt cong', before: 'Đoạn thẳng G1', after: 'Cung tròn G2/G3' },

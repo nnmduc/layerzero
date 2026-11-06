@@ -9,6 +9,7 @@ import {
   GithubLogo,
   HardDrives,
   LinuxLogo,
+  Printer,
   ShieldCheck,
   WindowsLogo,
 } from '@phosphor-icons/react';
@@ -46,16 +47,16 @@ const PLATFORM_CONFIG: Record<
       {
         id: 'arm64',
         label: 'Apple Silicon (M1 - M4)',
-        filename: 'LayerZero_2.1.0_Apple_Silicon_arm64.dmg',
+        filename: 'LayerZero_2.2.0_Apple_Silicon_arm64.dmg',
         sizeNote: '~27 MB (arm64) · Signed Apple Developer ID',
-        url: 'https://dl.layerzero.io.vn/LayerZero_2.1.0_Apple_Silicon_arm64.dmg',
+        url: 'https://dl.layerzero.io.vn/LayerZero_2.2.0_Apple_Silicon_arm64.dmg',
       },
       {
         id: 'x64',
         label: 'Mac Intel (x86_64)',
-        filename: 'LayerZero_2.1.0_Intel_x64.dmg',
+        filename: 'LayerZero_2.2.0_Intel_x64.dmg',
         sizeNote: '~30 MB (x86_64) · Signed Apple Developer ID',
-        url: 'https://dl.layerzero.io.vn/LayerZero_2.1.0_Intel_x64.dmg',
+        url: 'https://dl.layerzero.io.vn/LayerZero_2.2.0_Intel_x64.dmg',
       },
     ],
   },
@@ -69,17 +70,17 @@ const PLATFORM_CONFIG: Record<
       {
         id: 'exe',
         label: 'Windows Installer (.exe)',
-        filename: 'LayerZero_2.1.0_Windows_x64-setup.exe',
+        filename: 'LayerZero_2.2.0_Windows_x64-setup.exe',
         sizeNote: 'NSIS Setup (x86_64) · Tải trực tiếp từ GitHub Releases',
-        url: 'https://github.com/nnmduc/layerzero/releases/latest/download/LayerZero_2.1.0_Windows_x64-setup.exe',
+        url: 'https://github.com/nnmduc/layerzero/releases/latest/download/LayerZero_2.2.0_Windows_x64-setup.exe',
         isExternalRelease: true,
       },
       {
         id: 'msi',
         label: 'MSI Package (.msi)',
-        filename: 'LayerZero_2.1.0_Windows_x64.msi',
+        filename: 'LayerZero_2.2.0_Windows_x64.msi',
         sizeNote: 'Windows Installer MSI (x86_64) · GitHub Releases',
-        url: 'https://github.com/nnmduc/layerzero/releases/latest/download/LayerZero_2.1.0_Windows_x64.msi',
+        url: 'https://github.com/nnmduc/layerzero/releases/latest/download/LayerZero_2.2.0_Windows_x64.msi',
         isExternalRelease: true,
       },
     ],
@@ -94,17 +95,17 @@ const PLATFORM_CONFIG: Record<
       {
         id: 'appimage',
         label: 'AppImage (Mọi bản phân phối)',
-        filename: 'LayerZero_2.1.0_Linux_x64.AppImage',
+        filename: 'LayerZero_2.2.0_Linux_x64.AppImage',
         sizeNote: 'Universal AppImage (x86_64) · Tải trực tiếp từ GitHub Releases',
-        url: 'https://github.com/nnmduc/layerzero/releases/latest/download/LayerZero_2.1.0_Linux_x64.AppImage',
+        url: 'https://github.com/nnmduc/layerzero/releases/latest/download/LayerZero_2.2.0_Linux_x64.AppImage',
         isExternalRelease: true,
       },
       {
         id: 'deb',
         label: 'Ubuntu / Debian (.deb)',
-        filename: 'LayerZero_2.1.0_Linux_amd64.deb',
+        filename: 'LayerZero_2.2.0_Linux_amd64.deb',
         sizeNote: 'Debian Package (amd64) · Tải trực tiếp từ GitHub Releases',
-        url: 'https://github.com/nnmduc/layerzero/releases/latest/download/LayerZero_2.1.0_Linux_amd64.deb',
+        url: 'https://github.com/nnmduc/layerzero/releases/latest/download/LayerZero_2.2.0_Linux_amd64.deb',
         isExternalRelease: true,
       },
     ],
@@ -247,7 +248,7 @@ export const DownloadSection: React.FC = () => {
                 />
                 <div>
                   <h3 className="text-base font-bold text-[#1D1D1F] dark:text-white">
-                    LayerZero Studio v2.0
+                    LayerZero Studio v2.2
                   </h3>
                   <p className="text-[12px] text-[#6E6E73] dark:text-zinc-400">
                     Đa nền tảng: macOS · Windows · Linux
@@ -266,6 +267,12 @@ export const DownloadSection: React.FC = () => {
                   <HardDrives size={17} weight="duotone" className="text-[#0071E3] shrink-0" />
                   <span className="text-[#1D1D1F] dark:text-zinc-200">
                     Đóng gói sẵn Python Sidecar · Không cần cài đặt phụ thuộc
+                  </span>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <Printer size={17} weight="duotone" className="text-[#0071E3] shrink-0" />
+                  <span className="text-[#1D1D1F] dark:text-zinc-200">
+                    PLA Lite · PLA Basic · PETG HF trên A1, A1 mini, P1S, X1C
                   </span>
                 </div>
                 <div className="flex items-center gap-2.5">

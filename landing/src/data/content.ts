@@ -164,7 +164,7 @@ export const PROBLEM_CASES: ProblemCase[] = [
     shortTitle: 'Là phẳng mặt đỉnh như đúc',
     title: 'Per-Object Ironing làm láng mịn bề mặt hộp phẳng ngang',
     oneLineSummary:
-      'Tự động đo diện tích mặt phẳng đỉnh (normal_z >= 0.995) để bật Ironing riêng cho đúng chi tiết đó với thông số chuẩn PLA.',
+      'Tự động đo diện tích mặt phẳng đỉnh (normal_z >= 0.995) để bật Ironing riêng cho đúng chi tiết đó với thông số theo vật liệu (PLA hoặc PETG).',
     learnedConcept:
       'Ironing dùng đầu phun nóng đi là lại với 12% lưu lượng nhựa để xóa sạch rãnh sợi.',
     image: '/images/prob-flat-ironing.jpg',

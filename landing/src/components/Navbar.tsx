@@ -65,6 +65,9 @@ export const Navbar: React.FC<NavbarProps> = ({ darkMode, onToggleTheme, isPegfo
             <a href="#tinh-nang" className="hover:text-[#0071E3] dark:hover:text-[#2997FF] transition-colors">
               Tính năng
             </a>
+            <a href="#vat-lieu" className="hover:text-[#0071E3] dark:hover:text-[#2997FF] transition-colors">
+              Vật liệu
+            </a>
             <a href="#xu-ly-loi-in" className="hover:text-[#0071E3] dark:hover:text-[#2997FF] transition-colors">
               Xử lý lỗi in 3D
             </a>

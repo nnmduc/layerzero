@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LayerZero Studio — Tài liệu Kỹ thuật & Giải thuật Chẩn đoán Tối ưu Mẫu in 3D</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090a0f;
+      --card-bg: rgba(18, 20, 29, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-hover: rgba(28, 32, 48, 0.85);
+      --accent: #0071E3;
+      --accent-glow: rgba(0, 113, 227, 0.35);
+      --accent-teal: #00d2b4;
+      --accent-purple: #7928ca;
+      --accent-amber: #f59e0b;
+      --accent-rose: #ff3b30;
+      --text: #f3f4f6;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --code-bg: #0d1117;
+      --code-border: #30363d;
+      --sidebar-w: 290px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      overflow-x: hidden;
+      display: flex;
+    }
+
+    /* Background Gradients */
+    .bg-blobs {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.18;
+    }
+    .blob-1 { top: -10%; left: 20%; width: 500px; height: 500px; background: var(--accent); }
+    .blob-2 { bottom: 10%; right: 10%; width: 600px; height: 600px; background: var(--accent-purple); }
+    .blob-3 { top: 40%; left: 60%; width: 450px; height: 450px; background: var(--accent-teal); }
+
+    /* Navigation Sidebar */
+    aside.sidebar {
+      position: sticky;
+      top: 0;
+      width: var(--sidebar-w);
+      height: 100vh;
+      background: rgba(10, 12, 18, 0.85);
+      backdrop-filter: blur(24px);
+      border-right: 1px solid var(--card-border);
+      padding: 32px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      z-index: 100;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text);
+    }
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #0071E3, #00d2b4);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.1rem;
+      box-shadow: 0 4px 14px var(--accent-glow);
+    }
+    .brand-title {
+      font-weight: 700;
+      font-size: 1.05rem;
+      letter-spacing: -0.02em;
+    }
+    .brand-sub {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .nav-group-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+    .nav-links {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .nav-links a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    .nav-links a:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.05);
+      transform: translateX(3px);
+    }
+    .nav-links a.active {
+      color: #fff;
+      background: rgba(0, 113, 227, 0.18);
+      font-weight: 600;
+      border: 1px solid rgba(0, 113, 227, 0.35);
+    }
+
+    /* Main Content */
+    main.content {
+      position: relative;
+      flex: 1;
+      padding: 48px 64px 100px;
+      max-width: 1180px;
+      z-index: 10;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: rgba(0, 113, 227, 0.12);
+      border: 1px solid rgba(0, 113, 227, 0.3);
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #60a5fa;
+      margin-bottom: 16px;
+    }
+    .hero-badge .dot {
+      width: 7px;
+      height: 7px;
+      background: #00d2b4;
+      border-radius: 50%;
+      box-shadow: 0 0 10px #00d2b4;
+    }
+
+    h1.hero-title {
+      font-size: 2.75rem;
+      font-weight: 800;
+      line-height: 1.2;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, #ffffff 30%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 18px;
+    }
+    p.hero-desc {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      max-width: 860px;
+      margin-bottom: 40px;
+    }
+
+    /* Section Styles */
+    section {
+      margin-bottom: 64px;
+      scroll-margin-top: 40px;
+    }
+    h2.section-title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #fff;
+    }
+    h2.section-title::before {
+      content: "";
+      width: 4px;
+      height: 24px;
+      background: var(--accent);
+      border-radius: 4px;
+      display: inline-block;
+    }
+    p.section-sub {
+      font-size: 0.98rem;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    h3.block-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin: 28px 0 12px;
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Cards & Containers */
+    .glass-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(16px);
+      border-radius: 16px;
+      padding: 24px 28px;
+      margin-bottom: 24px;
+      transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+    .glass-card:hover {
+      border-color: rgba(255, 255, 255, 0.16);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-badge {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.05em;
+    }
+    .badge-blue { background: rgba(0, 113, 227, 0.18); color: #60a5fa; border: 1px solid rgba(0, 113, 227, 0.3); }
+    .badge-green { background: rgba(0, 210, 180, 0.16); color: #2dd4bf; border: 1px solid rgba(0, 210, 180, 0.3); }
+    .badge-amber { background: rgba(245, 158, 11, 0.16); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-purple { background: rgba(121, 40, 202, 0.18); color: #c084fc; border: 1px solid rgba(121, 40, 202, 0.3); }
+    .badge-red { background: rgba(255, 59, 48, 0.18); color: #f87171; border: 1px solid rgba(255, 59, 48, 0.3); }
+
+    /* Code Snippets & Box */
+    .code-box {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 16px 0 24px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: #161b22;
+      border-bottom: 1px solid var(--code-border);
+      font-size: 0.8rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+    }
+    .code-file {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #58a6ff;
+      font-weight: 500;
+    }
+    .code-lines {
+      color: var(--text-dim);
+      font-size: 0.76rem;
+    }
+    pre {
+      padding: 18px 20px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      color: #e6edf3;
+    }
+    code .kw { color: #ff7b72; font-weight: 600; }
+    code .fn { color: #d2a8ff; }
+    code .str { color: #a5d6ff; }
+    code .num { color: #79c0ff; }
+    code .cm { color: #8b949e; font-style: italic; }
+    code .var { color: #ffa657; }
+    code .cls { color: #7ee787; font-weight: 600; }
+
+    /* Math Formulas */
+    .math-callout {
+      background: rgba(13, 17, 23, 0.8);
+      border-left: 3px solid var(--accent-teal);
+      padding: 14px 20px;
+      margin: 14px 0;
+      border-radius: 0 10px 10px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88rem;
+      color: #e2e8f0;
+    }
+
+    /* Comparison Table */
+    table.spec-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 18px 0;
+      font-size: 0.9rem;
+    }
+    table.spec-table th, table.spec-table td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--card-border);
+    }
+    table.spec-table th {
+      background: rgba(255, 255, 255, 0.03);
+      font-weight: 600;
+      color: #cbd5e1;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    table.spec-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Architecture Pipeline Flow */
+    .flow-step {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+    .step-num {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent-purple));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px var(--accent-glow);
+    }
+    .step-body {
+      flex: 1;
+    }
+    .step-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--card-border);
+      padding-top: 32px;
+      margin-top: 80px;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    @media (max-width: 900px) {
+      body { flex-direction: column; }
+      aside.sidebar { width: 100%; height: auto; position: relative; }
+      main.content { padding: 32px 20px; }
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg-blobs">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <a href="#" class="brand">
+      <div class="brand-icon">L0</div>
+      <div>
+        <div class="brand-title">LayerZero Studio</div>
+        <div class="brand-sub">Technical Architecture v2.0</div>
+      </div>
+    </a>
+
+    <div>
+      <div class="nav-group-title">Mục lục kỹ thuật</div>
+      <ul class="nav-links">
+        <li><a href="#pipeline" class="active"><span>1.</span> Kiến trúc Pipeline 3 pha</a></li>
+        <li><a href="#profiler"><span>2.</span> NumPy Morphology Profiler</a></li>
+        <li><a href="#affine"><span>2.1</span> Affine Transform & Winding</a></li>
+        <li><a href="#footprint"><span>2.2</span> First-Layer Footprint Audit</a></li>
+        <li><a href="#cylinder"><span>2.3</span> Cylindrical Symmetry Score</a></li>
+        <li><a href="#topology"><span>2.4</span> Topology Masks & Archetypes</a></li>
+        <li><a href="#ai-engine"><span>3.</span> Hybrid AI & Rule Engine</a></li>
+        <li><a href="#patching"><span>4.</span> Non-Destructive Mesh Patching</a></li>
+        <li><a href="#flatten"><span>4.1</span> Mesh Clamping (FLATTEN_BOTTOM)</a></li>
+        <li><a href="#supports"><span>4.2</span> 360° Support Cradle Painting</a></li>
+        <li><a href="#screws"><span>4.3</span> Per-Object Screws Overrides</a></li>
+        <li><a href="#codemap"><span>5.</span> Bản đồ Repository & Code Map</a></li>
+      </ul>
+    </div>
+
+    <div>
+      <div class="nav-group-title">Thông tin dự án</div>
+      <div style="font-size: 0.82rem; color: var(--text-dim); line-height: 1.5;">
+        Target: Bambu Lab A1 + PLA Lite<br>
+        Backend: Python 3.12 (NumPy, FastAPI)<br>
+        Agent: Claude Code & agy Unleashed<br>
+        Desktop: Tauri v2 + React 18
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="content">
+
+    <div class="hero-badge">
+      <span class="dot"></span>
+      Tài liệu Phân tích Kỹ thuật & Thuật toán
+    </div>
+
+    <h1 class="hero-title">Phương pháp Chuẩn đoán & Tối ưu Mẫu in 3D trong LayerZero</h1>
+    <p class="hero-desc">
+      Bản phân tích toàn diện về cách LayerZero Studio kết hợp <strong>Toán học hình thái 3D vectorized (NumPy)</strong> và 
+      <strong>Headless AI Agent</strong> để giải phẫu file <code>.3mf</code> / <code>.stl</code>, phát hiện bẫy lỗi in và 
+      can thiệp nhị phân không phá hủy nhằm nâng cao tính an toàn (Safety) cùng độ mịn bề mặt (Aesthetics).
+    </p>
+
+    <!-- SECTION 1: PIPELINE -->
+    <section id="pipeline">
+      <h2 class="section-title">1. Kiến trúc Pipeline 3 Pha (3-Stage Interactive Pipeline)</h2>
+      <p class="section-sub">
+        Thay vì chỉ đọc các thẻ XML bề nổi của Slicer, LayerZero xây dựng luồng xử lý khép kín từ hình học không gian 3 chiều đến cài đặt slicer.
+      </p>
+
+      <div class="glass-card">
+        <div class="flow-step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Stage 1 — Instant 3D Morphology Profiling (< 1.2s)</div>
+            <p style="color: var(--text-muted); font-size: 0.92rem;">
+              Giải nén file <code>.3mf</code> trong RAM, đọc toàn bộ lưới tam giác 3D qua <code>backend/profiler.py</code>, 
+              áp ma trận affine 12 số thực để đưa về toạ độ bàn in thực tế (World-Space), và chạy các phép toán vector hóa NumPy. 
+              Sinh ra bản báo cáo baseline tất định (Deterministic Baseline) và buffer hình học nén cho Three.js WebGL.
+            </p>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Stage 2 — Multi-CLI Headless AI Audit (Claude Code & agy)</div>
+            <p style="color: var(--text-muted); font-size: 0.92rem;">
+              Khởi chạy agent ở chế độ Unleashed qua <code>backend/ai_runner.py</code>. AI nhận toàn bộ dữ liệu đo đạc (Footprint, Normals, Overhangs, Flags) 
+              kèm quyền thực thi lệnh Bash và đọc trực tiếp file `.3mf`. AI suy luận và đóng gói kết quả theo định dạng JSON Schema chuẩn, 
+              stream trực tiếp tiến trình qua Server-Sent Events (SSE) về giao diện người dùng.
+            </p>
+          </div>
+        </div>
+
+        <div class="flow-step" style="margin-bottom: 0;">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Stage 3 — Non-Destructive .3mf Patching & Export</div>
+            <p style="color: var(--text-muted); font-size: 0.92rem;">
+              <code>backend/patcher.py</code> nhân bản file gốc và áp dụng chính xác các thẻ tối ưu được người dùng phê duyệt: 
+              vạt phẳng lưới đáy (Z-clamping), bọc đài Support Enforcer 360°, tiêm cấu hình riêng cho từng chi tiết (Per-Object Overrides), 
+              trong khi <strong>bảo toàn 100% bảng màu đa sắc AMS</strong> và tháp Prime Tower.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: PROFILER -->
+    <section id="profiler">
+      <h2 class="section-title">2. Kỹ thuật & Giải thuật Phân tích Hình thái học 3D (NumPy)</h2>
+      <p class="section-sub">
+        Toàn bộ logic đo đạc nằm tại file <a href="https://github.com/nnmduc/layerzero/blob/main/backend/profiler.py" style="color: #60a5fa;"><code>backend/profiler.py</code></a>. 
+        Module này xử lý các mô hình phức tạp hơn 1.8 triệu tam giác trong thời gian dưới 1.2 giây nhờ chuyển dịch hoàn toàn các phép tính lặp sang mảng C-contiguous của NumPy.
+      </p>
+
+      <!-- 2.1 Affine Transform -->
+      <div id="affine">
+        <h3 class="block-title">2.1. Biến đổi Không gian Thế giới & Thuật toán Sửa Hướng Mặt (Winding)</h3>
+        <p style="color: var(--text-muted); font-size: 0.92rem;">
+          Trong đặc tả 3MF, các mô hình con trong assembly được định vị bằng ma trận 12 số thực: <code>m00 m01 m02 m10 m11 m12 m20 m21 m22 tx ty tz</code>. 
+          Nếu chỉ đọc toạ độ thuần của mesh, toạ độ Z và góc xoay sẽ sai lệch so với lúc in thực tế.
+        </p>
+
+        <div class="math-callout">
+          [x', y', z'] = [x, y, z] · M_{3×3} + [t_x, t_y, t_z]
+          <br>
+          Điều kiện đảo winding: det(M_{3×3}) &lt; 0  ==&gt;  Swap tam giác [v0, v1, v2] -&gt; [v0, v2, v1]
+        </div>
+
+        <div class="code-box">
+          <div class="code-header">
+            <span class="code-file">backend/profiler.py</span>
+            <span class="code-lines">Lines 179–198 &amp; 737–743</span>
+          </div>
+          <pre><code><span class="kw">def</span> <span class="fn">_apply_3mf_transform</span>(verts: np.ndarray, tf: <span class="cls">list</span>[<span class="cls">float</span>]) -&gt; np.ndarray:
+    <span class="str">"""Áp dụng ma trận Affine 12 số thực đưa đỉnh về World-Space chuẩn xác."""</span>
+    <span class="kw">if</span> <span class="fn">len</span>(tf) &lt; <span class="num">12</span>:
+        <span class="kw">return</span> verts
+    mat = np.array([
+        [tf[<span class="num">0</span>], tf[<span class="num">1</span>], tf[<span class="num">2</span>]],
+        [tf[<span class="num">3</span>], tf[<span class="num">4</span>], tf[<span class="num">5</span>]],
+        [tf[<span class="num">6</span>], tf[<span class="num">7</span>], tf[<span class="num">8</span>]],
+    ], dtype=np.float32)
+    trans = np.array([tf[<span class="num">9</span>], tf[<span class="num">10</span>], tf[<span class="num">11</span>]], dtype=np.float32)
+    <span class="kw">return</span> verts @ mat + trans
+
+<span class="cm"># Kiểm tra và sửa lỗi đảo pháp tuyến khi mô hình bị mirror trong Slicer:</span>
+<span class="kw">if</span> np.linalg.det(m_c) &lt; <span class="num">0</span>:
+    st_tf = st_tf[:, [<span class="num">0</span>, <span class="num">2</span>, <span class="num">1</span>]]  <span class="cm"># Hoán đổi cột để pháp tuyến luôn hướng ra ngoài</span></code></pre>
+        </div>
+      </div>
+
+      <!-- 2.2 Footprint Audit -->
+      <div id="footprint">
+        <h3 class="block-title">2.2. Giải thuật Đo Diện tích Tiếp xúc Bàn in (First-Layer Footprint Audit)</h3>
+        <p style="color: var(--text-muted); font-size: 0.92rem;">
+          Một trong những nguyên nhân hàng đầu khiến mẫu in bị bung khỏi bàn PEI (nhất là trên máy bed-slinger Bambu Lab A1 khi bàn in trượt nhanh theo trục Y) 
+          là hiện tượng <strong>Đáy khớp cầu (Ball Joint) hoặc chóp nhọn</strong> chỉ chạm bàn vài chấm pixel ở Layer 1.
+        </p>
+
+        <div class="code-box">
+          <div class="code-header">
+            <span class="code-file">backend/profiler.py</span>
+            <span class="code-lines">Lines 300–312 &amp; 388–393</span>
+          </div>
+          <pre><code><span class="cm"># Lọc tập hợp các đỉnh tiếp xúc tại Layer 1 (Z &lt;= 0.20mm) vs Layer 10 (Z &lt;= 2.00mm)</span>
+v02 = verts[verts[:, <span class="num">2</span>] - min_z &lt;= <span class="num">0.20</span>]
+v20 = verts[verts[:, <span class="num">2</span>] - min_z &lt;= <span class="num">2.00</span>]
+
+l1_vertex_count = <span class="cls">int</span>(v02.shape[<span class="num">0</span>])
+fp02_x = <span class="fn">round</span>(<span class="cls">float</span>(v02[:, <span class="num">0</span>].max() - v02[:, <span class="num">0</span>].min()), <span class="num">2</span>) <span class="kw">if</span> l1_vertex_count &gt; <span class="num">0</span> <span class="kw">else</span> <span class="num">0.0</span>
+fp02_y = <span class="fn">round</span>(<span class="cls">float</span>(v02[:, <span class="num">1</span>].max() - v02[:, <span class="num">1</span>].min()), <span class="num">2</span>) <span class="kw">if</span> l1_vertex_count &gt; <span class="num">0</span> <span class="kw">else</span> <span class="num">0.0</span>
+
+<span class="cm"># QUY TẮC PHÁT HIỆN LỖI CHÂN TIẾP XÚC ĐIỂM / KHỚP CẦU NGUY HIỂM:</span>
+<span class="kw">if</span> <span class="kw">not</span> is_screw_or_fastener <span class="kw">and</span> span_z &gt; <span class="num">22.0</span>:
+    <span class="kw">if</span> fp02_x &lt; <span class="num">6.5</span> <span class="kw">or</span> fp02_y &lt; <span class="num">6.5</span> <span class="kw">or</span> l1_vertex_count &lt; <span class="num">95</span>:
+        <span class="kw">if</span> fp20_x &gt; fp02_x * <span class="num">1.35</span> <span class="kw">or</span> fp20_y &gt; fp02_y * <span class="num">1.35</span>:
+            archetypes.append(<span class="str">"Đáy khớp cầu / Điểm nhỏ"</span>)
+            morphology_flags.append(<span class="str">"PINPOINT_BALL_BASE"</span>)</code></pre>
+        </div>
+      </div>
+
+      <!-- 2.3 Cylindrical Symmetry Score -->
+      <div id="cylinder">
+        <h3 class="block-title">2.3. Giải thuật Tính Điểm Đối Xứng Trụ Tròn (Cylindrical Symmetry Score)</h3>
+        <p style="color: var(--text-muted); font-size: 0.92rem;">
+          Khi in các chi tiết hình trụ tròn, đường nối giáp vòng (Z-Seam) sẽ lộ thành một vết sẹo gồ ghề rất xấu vì không có góc nhọn để ẩn giấu. 
+          Thuật toán của LayerZero nhận diện hình trụ tròn thông qua <strong>tính chất toả tròn của vector pháp tuyến</strong> so với vector bán kính từ tâm.
+        </p>
+
+        <div class="math-callout">
+          \vec{R}_i = \text{tri\_center}_{xy, i} - \text{center}_{xy}
+          <br>
+          \text{dot}_i = \frac{|\vec{R}_i \cdot \vec{n}_{xy, i}|}{\|\vec{R}_i\| \cdot \|\vec{n}_{xy, i}\|}
+          \quad \implies \quad \text{Score} = \frac{\sum (\text{dot}_i \cdot S_i)}{\sum S_i}
+        </div>
+
+        <div class="code-box">
+          <div class="code-header">
+            <span class="code-file">backend/profiler.py</span>
+            <span class="code-lines">Lines 345–363</span>
+          </div>
+          <pre><code>center_xy = (min_xyz[:<span class="num">2</span>] + max_xyz[:<span class="num">2</span>]) * <span class="num">0.5</span>
+<span class="kw">if</span> np.any(vert_wall_mask):
+    <span class="cm"># Vector nối từ tâm hình học đến tâm từng tam giác trên vách đứng</span>
+    tri_centers_xy = ((v1[vert_wall_mask, :<span class="num">2</span>] + v2[vert_wall_mask, :<span class="num">2</span>] + v3[vert_wall_mask, :<span class="num">2</span>]) / <span class="num">3.0</span>) - center_xy
+    r_len = np.linalg.norm(tri_centers_xy, axis=<span class="num">1</span>)
+    n_xy = np.linalg.norm(normals[vert_wall_mask, :<span class="num">2</span>], axis=<span class="num">1</span>)
+    valid_r = (r_len &gt; <span class="num">1e-3</span>) &amp; (n_xy &gt; <span class="num">1e-3</span>)
+    <span class="kw">if</span> np.any(valid_r):
+        <span class="cm"># Tính độ thẳng hàng giữa vector bán kính và vector pháp tuyến</span>
+        dots = np.abs(np.sum(tri_centers_xy[valid_r] * normals[vert_wall_mask, :<span class="num">2</span>][valid_r], axis=<span class="num">1</span>) / (r_len[valid_r] * n_xy[valid_r]))
+        w_areas = tri_areas[vert_wall_mask][valid_r]
+        cylindrical_score = <span class="fn">round</span>(<span class="cls">float</span>(np.sum(dots * w_areas) / <span class="fn">max</span>(<span class="cls">float</span>(w_areas.sum()), <span class="num">1e-5</span>)), <span class="num">3</span>)</code></pre>
+        </div>
+      </div>
+
+      <!-- 2.4 Topology Masks & Archetypes -->
+      <div id="topology">
+        <h3 class="block-title">2.4. Mặt Nạ Hình Thái Học Bề Mặt & Cờ Phân Loại (Morphology Flags)</h3>
+        <p style="color: var(--text-muted); font-size: 0.92rem;">
+          Dựa trên vector pháp tuyến đơn vị $\vec{n} = (n_x, n_y, n_z)$ và độ cao tương đối $z_{\text{ratio}}$, 
+          hệ thống phân loại mô hình vào các Archetypes đặc thù:
+        </p>
+
+        <table class="spec-table">
+          <thead>
+            <tr>
+              <th>Cờ Hình Thái (Morphology Flag)</th>
+              <th>Điều kiện Toán học</th>
+              <th>Vấn đề In &amp; Nguy cơ Lỗi</th>
+              <th>Giải pháp LayerZero</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="stat-badge badge-red">PINPOINT_BALL_BASE</span></td>
+              <td>$fp_{0.2} &lt; 6.5\text{mm} \land fp_{2.0} &gt; 1.35 \times fp_{0.2}$</td>
+              <td>Tiếp xúc điểm hình cầu, rung lắc văng mẫu khi in cao.</td>
+              <td>Cắt phẳng đáy $\Delta z = 0.8\text{mm}$ (tăng 300% diện tích).</td>
+            </tr>
+            <tr>
+              <td><span class="stat-badge badge-amber">MISSING_BASE_SUPPORTS</span></td>
+              <td>Gầm $Z \le 8\text{mm}$ có $n_z &lt; -0.5$ nhưng thiếu Enforcer</td>
+              <td>Tác giả quên tô support chân, sợi đùn giữa không trung.</td>
+              <td>Tự động vẽ Support Enforcer 360° ôm gầm.</td>
+            </tr>
+            <tr>
+              <td><span class="stat-badge badge-red">ACCIDENTAL_BASE_BLOCKERS</span></td>
+              <td>Số tam giác `paint_supports="8"` tại $Z \le 8\text{mm} &gt; 80$</td>
+              <td>Tác giả quẹt nhầm cọ cấm support làm rỗng đài đỡ chân.</td>
+              <td>Tự động bóc gỡ toàn bộ Blocker ở vùng đế.</td>
+            </tr>
+            <tr>
+              <td><span class="stat-badge badge-blue">SLOTTED_OR_SMALL_SCREW</span></td>
+              <td>$X, Y &lt; 14\text{mm} \land 10 \le Z \le 35\text{mm} \land \text{Cyl} &gt; 0.82$</td>
+              <td>Rãnh tua-vít xẻ đôi Layer 1, infill zig-zag rung lắc bung ốc.</td>
+              <td>Per-object Brim 5mm, 6 Walls Concentric 100%, vách 35mm/s.</td>
+            </tr>
+            <tr>
+              <td><span class="stat-badge badge-purple">DOMED_CURVATURE_TOP</span></td>
+              <td>$z_{\text{ratio}} \ge 0.55 \land 0.68 \le n_z &lt; 0.985$</td>
+              <td>Mặt vòm cong lộ rõ các vân bậc thang (stair-stepping).</td>
+              <td>Adaptive Layer Height 0.16mm + Concentric Top Surface.</td>
+            </tr>
+            <tr>
+              <td><span class="stat-badge badge-green">FLAT_HORIZONTAL_TOP</span></td>
+              <td>$z_{\text{ratio}} \ge 0.60 \land n_z \ge 0.992 \land S &gt; 140\text{mm}^2$</td>
+              <td>Bề mặt trên cùng sần sùi các đường line song song.</td>
+              <td>Bật Per-Object Ironing (Ủ là phẳng mặt trên cùng: Flow 12%).</td>
+            </tr>
+            <tr>
+              <td><span class="stat-badge badge-green">SMOOTH_CYLINDER_SEAM</span></td>
+              <td>$\text{Cylindrical Score} &gt; 0.86 \land S_{\text{wall}} &gt; 120\text{mm}^2$</td>
+              <td>Vết sẹo ghép lớp Z-Seam lộ rõ trên mặt trụ tròn nhẵn.</td>
+              <td>Scarf Joint Seam (vát mép 155°) + Nội suy cung Arc G2/G3.</td>
+            </tr>
+            <tr>
+              <td><span class="stat-badge badge-amber">Y_AXIS_INERTIA_TALL</span></td>
+              <td>$\text{Span}_z &gt; 42\text{mm} \land (\text{Span}_z / \min(X, Y)) &gt; 2.6$</td>
+              <td>Chi tiết cao mảnh, bàn in A1 giật trục Y làm gãy/ngã mẫu.</td>
+              <td>Giảm gia tốc Y xuống 4000 mm/s², nâng Z-Hop 0.8mm Normal Lift.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SECTION 3: AI RUNNER -->
+    <section id="ai-engine">
+      <h2 class="section-title">3. Bộ não Suy luận Đa tác nhân (Hybrid AI + Deterministic Rule Engine)</h2>
+      <p class="section-sub">
+        Được hiện thực hóa trong <a href="https://github.com/nnmduc/layerzero/blob/main/backend/ai_runner.py" style="color: #60a5fa;"><code>backend/ai_runner.py</code></a> và 
+        <a href="https://github.com/nnmduc/layerzero/blob/main/backend/patcher.py" style="color: #60a5fa;"><code>backend/patcher.py (build_baseline_audit)</code></a>.
+      </p>
+
+      <div class="grid-2">
+        <div class="glass-card">
+          <div class="stat-badge badge-green" style="margin-bottom: 12px;">Deterministic Baseline Engine</div>
+          <h4 style="color: #fff; margin-bottom: 8px;">100% Offline &amp; Phản hồi Tức thì</h4>
+          <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 14px;">
+            Hàm <code>build_baseline_audit()</code> tự động đối chiếu các cờ hình thái học với cấu hình mặc định của máy 
+            (Bambu Studio System Profiles) để sinh ngay danh sách giải pháp mà không cần kết nối mạng hay gọi LLM.
+          </p>
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: #94a3b8;">
+            &bull; Sinh Diagnostic Cards (Safety &amp; Aesthetics)<br>
+            &bull; So sánh 3 cột: Default vs Author vs Proposed<br>
+            &bull; Đóng vai trò làm fallback an toàn tuyệt đối
+          </div>
+        </div>
+
+        <div class="glass-card">
+          <div class="stat-badge badge-purple" style="margin-bottom: 12px;">Headless Multi-CLI AI Agent</div>
+          <h4 style="color: #fff; margin-bottom: 8px;">Claude Code &amp; Antigravity agy Unleashed</h4>
+          <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 14px;">
+            Nếu hệ thống cài đặt CLI <code>claude</code> hoặc <code>agy</code>, backend sẽ khởi chạy một sub-process với đầy đủ công cụ: 
+            chạy lệnh bash, đọc file cấu hình, đo đạc chuyên sâu và stream log từng bước qua Server-Sent Events (SSE).
+          </p>
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: #94a3b8;">
+            &bull; Khóa đầu ra bằng <code>--json-schema audit_schema.json</code><br>
+            &bull; Giải thích kỹ thuật sắc bén bằng tiếng Việt thực tế<br>
+            &bull; Tự động xử lý các tình huống biên phức tạp
+          </div>
+        </div>
+      </div>
+
+      <div class="code-box">
+        <div class="code-header">
+          <span class="code-file">backend/ai_runner.py</span>
+          <span class="code-lines">Lines 274–284 &amp; Command Spawn</span>
+        </div>
+        <pre><code><span class="cm"># Khởi chạy Headless AI Agent với cờ Unleashed và bắt buộc định dạng JSON Schema</span>
+cmd = [
+    claude_bin,                     <span class="cm"># Hoặc agy_bin</span>
+    <span class="str">"-p"</span>, prompt,
+    <span class="str">"--dangerously-skip-permissions"</span>,
+    <span class="str">"--output-format"</span>, <span class="str">"stream-json"</span>,
+    <span class="str">"--verbose"</span>,
+    <span class="str">"--json-schema"</span>, schema_str,   <span class="cm"># backend/schemas/audit_schema.json</span>
+]
+proc = <span class="kw">await</span> asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE)</code></pre>
+      </div>
+    </section>
+
+    <!-- SECTION 4: PATCHING -->
+    <section id="patching">
+      <h2 class="section-title">4. Kỹ thuật Can thiệp Nhị phân & Lưới 3D Không Phá Hủy</h2>
+      <p class="section-sub">
+        Được định nghĩa tại <a href="https://github.com/nnmduc/layerzero/blob/main/backend/patcher.py" style="color: #60a5fa;"><code>backend/patcher.py</code></a>. 
+        Mọi can thiệp đều sửa đổi trực tiếp cấu trúc XML của archive <code>.3mf</code> mà không cần xuất qua phần mềm thứ ba.
+      </p>
+
+      <!-- 4.1 FLATTEN_BOTTOM -->
+      <div id="flatten">
+        <h3 class="block-title">4.1. Giải thuật Cắt Phẳng Đáy Lưới 3D (FLATTEN_BOTTOM)</h3>
+        <p style="color: var(--text-muted); font-size: 0.92rem;">
+          Để khắc phục chân khớp cầu mà không làm biến dạng tỷ lệ hình học của toàn bộ mô hình:
+        </p>
+        <ol style="color: var(--text-muted); font-size: 0.9rem; margin-left: 20px; margin-bottom: 16px; line-height: 1.8;">
+          <li>Quét tất cả các đỉnh trong thẻ <code>&lt;vertex&gt;</code> có toạ độ $z &lt; z_{\min} + \Delta z$ và kẹp cứng về $z_{\min} + \Delta z$ ($\Delta z = 0.8\text{mm}$).</li>
+          <li>Dịch chuyển toàn bộ đỉnh của mesh một khoảng $-\Delta z / 2$ để giữ tâm đối xứng trùng với quy ước nội bộ của Bambu Studio.</li>
+          <li>Trừ đúng giá trị $\Delta z / 2$ vào vị trí $Z$ trong ma trận transform của <code>&lt;item&gt;</code>, <code>&lt;assemble_item&gt;</code> và <code>source_offset_z</code> để mặt đáy phẳng mới hạ sát chính xác xuống mặt bàn $Z=0$.</li>
+        </ol>
+
+        <div class="code-box">
+          <div class="code-header">
+            <span class="code-file">backend/patcher.py</span>
+            <span class="code-lines">Lines 578–587 &amp; 853–869</span>
+          </div>
+          <pre><code><span class="cm"># 1. Kẹp tọa độ đỉnh tại đáy và dịch tâm đối xứng trong _patch_mesh_element:</span>
+<span class="kw">if</span> do_flat:
+    <span class="kw">for</span> v <span class="kw">in</span> v_els:
+        z = <span class="cls">float</span>(v.attrib[<span class="str">"z"</span>])
+        <span class="kw">if</span> z &lt; min_z + dz:
+            v.attrib[<span class="str">"z"</span>] = f<span class="str">"{min_z + dz - half_dz:.7f}"</span>
+            flattened_verts += <span class="num">1</span>
+        <span class="kw">else</span>:
+            v.attrib[<span class="str">"z"</span>] = f<span class="str">"{z - half_dz:.7f}"</span>
+
+<span class="cm"># 2. Điều chỉnh ma trận biến đổi thế giới của 3D/3dmodel.model để mặt phẳng tiếp xúc Z=0.00:</span>
+<span class="kw">for</span> item_el <span class="kw">in</span> root_3d.findall(f<span class="str">".//{{{NS_URI_M}}}item"</span>):
+    <span class="kw">if</span> item_el.attrib.get(<span class="str">"objectid"</span>) == oid <span class="kw">and</span> <span class="str">"transform"</span> <span class="kw">in</span> item_el.attrib:
+        parts = item_el.attrib[<span class="str">"transform"</span>].split()
+        parts[<span class="num">11</span>] = f<span class="str">"{float(parts[11]) - half_dz:.7f}"</span>   <span class="cm"># Phần tử t_z</span>
+        item_el.attrib[<span class="str">"transform"</span>] = <span class="str">" "</span>.join(parts)</code></pre>
+        </div>
+      </div>
+
+      <!-- 4.2 Support Cradle -->
+      <div id="supports">
+        <h3 class="block-title">4.2. Kỹ thuật Tự Động Bọc Đài Đỡ 360° (REINFORCE_SUPPORTS)</h3>
+        <p style="color: var(--text-muted); font-size: 0.92rem;">
+          Thay vì bật Auto Tree Support trên toàn bộ mô hình (dễ tạo nhánh rác ở các chi tiết không cần thiết), 
+          LayerZero tính toán vector pháp tuyến từng tam giác trên lưới XML và tiêm trực tiếp thuộc tính <code>paint_supports="4"</code>:
+        </p>
+
+        <div class="code-box">
+          <div class="code-header">
+            <span class="code-file">backend/patcher.py</span>
+            <span class="code-lines">Lines 560–577</span>
+          </div>
+          <pre><code><span class="kw">if</span> do_sup:
+    <span class="kw">for</span> t <span class="kw">in</span> mesh_parent.findall(f<span class="str">".//{{{NS_URI_M}}}triangle"</span>):
+        <span class="cm"># Tính vector pháp tuyến và độ cao trung bình của tam giác</span>
+        z_avg = (v1[<span class="num">2</span>] + v2[<span class="num">2</span>] + v3[<span class="num">2</span>]) / <span class="num">3.0</span> - min_z
+        <span class="cm"># Tích có hướng n = (v2 - v1) x (v3 - v1)</span>
+        nz = (v2[<span class="num">0</span>] - v1[<span class="num">0</span>]) * (v3[<span class="num">1</span>] - v1[<span class="num">1</span>]) - (v2[<span class="num">1</span>] - v1[<span class="num">1</span>]) * (v3[<span class="num">0</span>] - v1[<span class="num">0</span>])
+        length = math.hypot(nx, ny, nz)
+        <span class="kw">if</span> length &gt; <span class="num">1e-9</span>:
+            nz /= length
+        
+        <span class="cm"># Gán Support Enforcer ("4") cho các mặt chúc xuống ở gầm đáy (0.85mm &lt;= Z &lt;= 8.0mm)</span>
+        <span class="kw">if</span> (dz + <span class="num">0.05</span>) &lt;= z_avg &lt;= <span class="num">8.0</span> <span class="kw">and</span> nz &lt; -<span class="num">0.10</span>:
+            t.attrib[<span class="str">"paint_supports"</span>] = <span class="str">"4"</span>
+        <span class="cm"># Xóa support tại mặt phẳng tiếp xúc Z=0 để đáy dính 100% vào bàn PEI:</span>
+        <span class="kw">elif</span> z_avg &lt; (dz + <span class="num">0.05</span>) <span class="kw">and</span> <span class="str">"paint_supports"</span> <span class="kw">in</span> t.attrib:
+            <span class="kw">del</span> t.attrib[<span class="str">"paint_supports"</span>]</code></pre>
+        </div>
+      </div>
+
+      <!-- 4.3 Screws -->
+      <div id="screws">
+        <h3 class="block-title">4.3. Tiêm Cấu hình Độc lập Cho Ốc Vít (Per-Object Overrides)</h3>
+        <p style="color: var(--text-muted); font-size: 0.92rem;">
+          Để không làm chậm toàn bộ đĩa in, các chi tiết ốc vít nhỏ được gán cấu hình riêng biệt trong 
+          file <code>Metadata/model_settings.config</code>:
+        </p>
+
+        <div class="code-box">
+          <div class="code-header">
+            <span class="code-file">backend/patcher.py</span>
+            <span class="code-lines">Lines 752–766</span>
+          </div>
+          <pre><code><span class="kw">if</span> do_optimize_screws <span class="kw">and</span> <span class="str">"SLOTTED_OR_SMALL_SCREW"</span> <span class="kw">in</span> flags:
+    per_object_patches.setdefault(oid, {}).update({
+        <span class="str">"brim_type"</span>: <span class="str">"outer_only"</span>,
+        <span class="str">"brim_width"</span>: <span class="str">"5"</span>,               <span class="cm"># Brim 5mm khóa chặt 2 nửa cung tròn đầu ốc</span>
+        <span class="str">"brim_object_gap"</span>: <span class="str">"0.04"</span>,
+        <span class="str">"wall_loops"</span>: <span class="str">"6"</span>,                <span class="cm"># 6 lớp vách đặc chống gãy cổ khi siết lực</span>
+        <span class="str">"sparse_infill_density"</span>: <span class="str">"100%"</span>,
+        <span class="str">"sparse_infill_pattern"</span>: <span class="str">"concentric"</span>, <span class="cm"># Đường đồng tâm triệt tiêu rung giật</span>
+        <span class="str">"outer_wall_speed"</span>: <span class="str">"35"</span>,         <span class="cm"># Giảm tốc riêng vách ngoài ốc để ren sắc nét</span>
+        <span class="str">"inner_wall_speed"</span>: <span class="str">"50"</span>,
+    })</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 5: CODE MAP -->
+    <section id="codemap">
+      <h2 class="section-title">5. Bản đồ File &amp; Code Map Trong Git Repo</h2>
+      <p class="section-sub">
+        Toàn bộ code phân tích và tối ưu được phân tách mạch lạc trong kiến trúc Monorepo:
+      </p>
+
+      <table class="spec-table">
+        <thead>
+          <tr>
+            <th>Đường dẫn File (Git Repository)</th>
+            <th>Dòng Code Chính</th>
+            <th>Trách nhiệm Kỹ thuật</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><a href="https://github.com/nnmduc/layerzero/blob/main/backend/profiler.py" style="color: #60a5fa; font-family: monospace;">backend/profiler.py</a></td>
+            <td>Lines 179–198<br>Lines 256–532<br>Lines 534–797</td>
+            <td>
+              Vectorized Morphology Profiler: Phân tích lưới 3D bằng NumPy, biến đổi affine 12 số thực, tính pháp tuyến, 
+              footprint Layer 1, đối xứng trụ tròn, nhận diện archetypes và cờ hình thái.
+            </td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/nnmduc/layerzero/blob/main/backend/patcher.py" style="color: #60a5fa; font-family: monospace;">backend/patcher.py</a></td>
+            <td>Lines 33–280<br>Lines 540–589<br>Lines 593–920</td>
+            <td>
+              Engine tối ưu: Hàm <code>build_baseline_audit()</code> sinh kết quả tức thì; 
+              hàm <code>_patch_mesh_element()</code> vạt phẳng đáy và vẽ support 360°; 
+              hàm <code>apply_3mf_optimizations()</code> ghi đè cấu hình slicer không phá hủy.
+            </td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/nnmduc/layerzero/blob/main/backend/ai_runner.py" style="color: #60a5fa; font-family: monospace;">backend/ai_runner.py</a></td>
+            <td>Lines 51–118<br>Lines 160–215<br>Lines 238–380</td>
+            <td>
+              AI Subprocess Orchestrator: Quản lý vòng đời Claude Code / agy CLI ở chế độ Unleashed, 
+              tạo prompt kỹ thuật, ràng buộc JSON schema và stream sự kiện Server-Sent Events (SSE).
+            </td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/nnmduc/layerzero/blob/main/backend/schemas/audit_schema.json" style="color: #60a5fa; font-family: monospace;">backend/schemas/audit_schema.json</a></td>
+            <td>Lines 1–120</td>
+            <td>
+              Đặc tả JSON Schema chuẩn cho đầu ra của AI Agent (đảm bảo tính toàn vẹn của <code>diagnostic_cards</code> và <code>settings_diff</code>).
+            </td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/nnmduc/layerzero/blob/main/backend/main.py" style="color: #60a5fa; font-family: monospace;">backend/main.py</a></td>
+            <td>Lines 110–260</td>
+            <td>
+              FastAPI Endpoints: Quản lý session, nạp file 3D, điều hướng phân tích (`/api/analyze`) và xuất file tối ưu (`/api/apply`).
+            </td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/nnmduc/layerzero/blob/main/frontend/src/components/Viewport3D.tsx" style="color: #60a5fa; font-family: monospace;">frontend/src/components/Viewport3D.tsx</a></td>
+            <td>Lines 33–95</td>
+            <td>
+              Three.js WebGL Viewport: Chuyển đổi hệ toạ độ Z-up của Slicer sang Y-up của Three.js <code>(x, y, z) &rarr; (x, z, -y)</code>, 
+              hiển thị x-ray gầm bàn in và highlight các vùng hình thái theo màu.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer>
+      <div>LayerZero Studio v2.0</div>
+    </footer>
+
+  </main>
+
+  <script>
+    // Highlight active sidebar navigation on scroll
+    const sections = document.querySelectorAll('section, div[id]');
+    const navLinks = document.querySelectorAll('.nav-links a');
+
+    window.addEventListener('scroll', () => {
+      let current = '';
+      sections.forEach(section => {
+        const sectionTop = section.offsetTop;
+        if (pageYOffset >= sectionTop - 120) {
+          current = section.getAttribute('id');
+        }
+      });
+      navLinks.forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href') === `#${current}`) {
+          link.classList.add('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

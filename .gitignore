@@ -41,6 +41,10 @@ frontend/src-tauri/binaries/layerzero-backend*
 *.AppImage
 *.deb
 
+# Cloudflare Wrangler
+.wrangler/
+*/.wrangler/
+
 # Local planning notes & review reports
 plans/
 

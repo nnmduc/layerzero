@@ -1,0 +1,13 @@
+{
+  "name": "pegforge-registration-worker",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker backend for PegForge community registrations",
+  "type": "module",
+  "main": "src/index.js",
+  "dependencies": {
+    "mimetext": "^3.0.24"
+  },
+  "devDependencies": {
+    "wrangler": "^4.158.0"
+  }
+}

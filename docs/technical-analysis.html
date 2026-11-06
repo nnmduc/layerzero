@@ -1,0 +1,2105 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LayerZero Studio — Tài liệu Kỹ thuật & Giải thuật Chẩn đoán In 3D</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #F5F5F7;
+      --card-bg: #FFFFFF;
+      --card-border: rgba(0, 0, 0, 0.06);
+      --card-border-hover: rgba(0, 0, 0, 0.12);
+      --accent: #0071E3;
+      --accent-hover: #0077ED;
+      --accent-light: rgba(0, 113, 227, 0.08);
+      --accent-subtle: rgba(0, 113, 227, 0.04);
+      --text: #1D1D1F;
+      --text-secondary: #6E6E73;
+      --text-tertiary: #86868B;
+      --divider: #E5E5EA;
+      --code-bg: #Fbfbfc;
+      --code-border: #E5E5EA;
+      --code-header: #F5F5F7;
+      --tag-green: #34C759;
+      --tag-green-bg: rgba(52, 199, 89, 0.1);
+      --tag-amber: #FF9500;
+      --tag-amber-bg: rgba(255, 149, 0, 0.1);
+      --tag-red: #FF3B30;
+      --tag-red-bg: rgba(255, 59, 48, 0.1);
+      --tag-purple: #AF52DE;
+      --tag-purple-bg: rgba(175, 82, 222, 0.1);
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-full: 9999px;
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02);
+      --shadow-md: 0 10px 30px -5px rgba(29, 29, 31, 0.06), 0 2px 6px -1px rgba(29, 29, 31, 0.04);
+      --shadow-lg: 0 20px 40px -10px rgba(0, 0, 0, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Helvetica Neue", sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Apple Navigation Bar */
+    header.apple-nav {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: rgba(245, 245, 247, 0.82);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-bottom: 1px solid var(--card-border);
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 24px;
+    }
+
+    .nav-container {
+      width: 100%;
+      max-width: 1100px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 0.95rem;
+      letter-spacing: -0.01em;
+    }
+
+    .brand-logo {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      object-fit: contain;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .brand-pill {
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
+      background: var(--accent);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.78rem;
+    }
+
+    .nav-menu {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      list-style: none;
+    }
+
+    .nav-menu a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: var(--radius-full);
+      transition: all 0.15s ease;
+    }
+
+    .nav-menu a:hover {
+      color: var(--text);
+      background: rgba(0, 0, 0, 0.05);
+    }
+
+    .nav-menu a.active {
+      color: var(--accent);
+      background: var(--accent-light);
+      font-weight: 600;
+    }
+
+    .nav-home-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--accent-light);
+      color: var(--accent) !important;
+      font-size: 0.78rem !important;
+      font-weight: 600 !important;
+      padding: 6px 13px !important;
+      border-radius: var(--radius-full) !important;
+      border: 1px solid rgba(0, 113, 227, 0.2);
+      transition: all 0.15s ease;
+    }
+    .nav-home-btn:hover {
+      background: rgba(0, 113, 227, 0.16);
+      transform: translateY(-1px);
+    }
+
+    .nav-github-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--text);
+      color: #FFFFFF !important;
+      font-size: 0.78rem !important;
+      font-weight: 600 !important;
+      padding: 6px 14px !important;
+      border-radius: var(--radius-full) !important;
+      transition: all 0.15s ease;
+    }
+    .nav-github-btn:hover {
+      background: #000000 !important;
+      transform: translateY(-1px);
+    }
+
+    /* Hero Section */
+    .hero-wrapper {
+      padding: 72px 24px 32px;
+      text-align: center;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .apple-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+      background: var(--accent-light);
+      color: var(--accent);
+      font-size: 0.76rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      margin-bottom: 20px;
+    }
+
+    .apple-badge .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    h1.hero-title {
+      font-size: 2.85rem;
+      font-weight: 800;
+      letter-spacing: -0.035em;
+      line-height: 1.15;
+      color: var(--text);
+      margin-bottom: 18px;
+    }
+
+    p.hero-subtitle {
+      font-size: 1.15rem;
+      color: var(--text-secondary);
+      font-weight: 400;
+      max-width: 760px;
+      margin: 0 auto 30px;
+      line-height: 1.6;
+    }
+
+    .hero-metrics {
+      display: inline-flex;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-full);
+      padding: 6px 16px;
+      box-shadow: var(--shadow-sm);
+      gap: 20px;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 36px;
+    }
+
+    .hero-metrics span b {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    /* Hero Image Container */
+    .hero-image-box {
+      width: 100%;
+      max-width: 920px;
+      margin: 0 auto 56px;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      background: #FFFFFF;
+      transition: transform 0.3s ease;
+    }
+    .hero-image-box:hover {
+      transform: translateY(-2px);
+    }
+    .hero-image-box img {
+      width: 100%;
+      height: auto;
+      display: block;
+      object-fit: cover;
+    }
+    .hero-image-caption {
+      padding: 12px 18px;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      background: #FFFFFF;
+      border-top: 1px solid rgba(0, 0, 0, 0.04);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Main Container */
+    main.main-content {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 0 24px 120px;
+    }
+
+    section {
+      margin-bottom: 72px;
+      scroll-margin-top: 80px;
+    }
+
+    .section-header {
+      margin-bottom: 24px;
+    }
+
+    .section-tag {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+
+    h2.section-title {
+      font-size: 1.85rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    p.section-desc {
+      font-size: 0.98rem;
+      color: var(--text-secondary);
+      max-width: 780px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 24px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .card:hover {
+      box-shadow: var(--shadow-md);
+      border-color: var(--card-border-hover);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    /* Feature Box Inside Card */
+    .feature-item {
+      display: flex;
+      gap: 16px;
+    }
+
+    .feature-icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--accent-light);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .feature-content h4 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+
+    .feature-content p {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+
+    /* Interactive Simulation & Motion Widget Box */
+    .sim-widget {
+      background: #FAFAFC;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      margin: 20px 0 26px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+    }
+
+    .sim-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .sim-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sim-badge-motion {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: #0071E3;
+      color: #fff;
+    }
+
+    .sim-title {
+      font-size: 0.96rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .sim-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .sim-btn {
+      font-family: inherit;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      background: #FFFFFF;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+    .sim-btn:hover {
+      background: #F0F0F2;
+      border-color: rgba(0, 0, 0, 0.18);
+    }
+    .sim-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #FFFFFF;
+      box-shadow: 0 2px 8px rgba(0, 113, 227, 0.35);
+    }
+
+    .canvas-container {
+      width: 100%;
+      height: 320px;
+      background: #FFFFFF;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.02);
+    }
+
+    .canvas-container canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .sim-footer-bar {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    .sim-slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      min-width: 260px;
+    }
+    .sim-slider-wrap label {
+      font-size: 0.78rem;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .sim-slider-wrap input[type="range"] {
+      flex: 1;
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.1);
+      outline: none;
+      -webkit-appearance: none;
+    }
+    .sim-slider-wrap input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      border: 2px solid var(--accent);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      cursor: pointer;
+    }
+
+    .sim-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+    }
+
+    /* macOS Window Code Box */
+    .code-window {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      margin: 18px 0 24px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    }
+
+    .code-window-bar {
+      height: 36px;
+      background: var(--code-header);
+      border-bottom: 1px solid var(--code-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      font-size: 0.78rem;
+    }
+
+    .window-dots {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .dot-mac {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .dot-close { background: #FF5F56; border: 1px solid #E0443E; }
+    .dot-min { background: #FFBD2E; border: 1px solid #DEA123; }
+    .dot-max { background: #27C93F; border: 1px solid #1AAB29; }
+
+    .code-title {
+      font-family: "JetBrains Mono", SFMono-Regular, monospace;
+      font-weight: 500;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      transition: all 0.15s ease;
+    }
+    a.code-title:hover {
+      color: var(--accent);
+    }
+
+    .code-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: rgba(0, 113, 227, 0.1);
+      color: var(--accent);
+    }
+
+    pre.code-block {
+      padding: 20px;
+      overflow-x: auto;
+      font-family: "JetBrains Mono", SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.83rem;
+      line-height: 1.62;
+      color: #24292f;
+      background: #FFFFFF;
+    }
+
+    code .kw { color: #cf222e; font-weight: 600; }
+    code .fn { color: #8250df; font-weight: 500; }
+    code .str { color: #0a3069; }
+    code .num { color: #0550ae; }
+    code .cm { color: #6e7781; font-style: italic; }
+    code .cls { color: #953800; font-weight: 600; }
+    code .op { color: #cf222e; }
+
+    /* Math Formulas Box */
+    .math-panel {
+      background: var(--accent-subtle);
+      border: 1px solid rgba(0, 113, 227, 0.15);
+      border-left: 4px solid var(--accent);
+      border-radius: var(--radius-sm);
+      padding: 16px 20px;
+      margin: 16px 0;
+      font-family: "JetBrains Mono", SFMono-Regular, monospace;
+      font-size: 0.86rem;
+      color: #1D1D1F;
+      line-height: 1.7;
+    }
+
+    /* Comparison Table */
+    .table-container {
+      overflow-x: auto;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--card-border);
+      background: #FFFFFF;
+    }
+
+    table.apple-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.88rem;
+    }
+
+    table.apple-table th {
+      background: #F9F9FA;
+      padding: 12px 18px;
+      font-weight: 600;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    table.apple-table td {
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+      color: var(--text);
+    }
+
+    table.apple-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    table.apple-table tr:hover td {
+      background: rgba(0, 113, 227, 0.02);
+    }
+
+    /* Status Pills */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: var(--radius-full);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      font-family: -apple-system, sans-serif;
+    }
+    .pill-red { background: var(--tag-red-bg); color: var(--tag-red); }
+    .pill-green { background: var(--tag-green-bg); color: var(--tag-green); }
+    .pill-amber { background: var(--tag-amber-bg); color: var(--tag-amber); }
+    .pill-blue { background: var(--accent-light); color: var(--accent); }
+    .pill-purple { background: var(--tag-purple-bg); color: var(--tag-purple); }
+
+    /* File Link */
+    a.file-ref {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--accent);
+      text-decoration: none;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.82rem;
+      font-weight: 500;
+      border-bottom: 1px dashed rgba(0, 113, 227, 0.4);
+      transition: all 0.15s ease;
+    }
+
+    a.file-ref:hover {
+      color: var(--accent-hover);
+      border-bottom-style: solid;
+    }
+
+    a.line-ref {
+      color: var(--text-secondary);
+      text-decoration: none;
+      border-bottom: 1px dotted var(--text-tertiary);
+      transition: all 0.15s ease;
+    }
+    a.line-ref:hover {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    /* Footer */
+    footer.apple-footer {
+      border-top: 1px solid var(--card-border);
+      padding: 36px 24px;
+      text-align: center;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--text-secondary);
+      background: var(--bg);
+    }
+
+    @media (max-width: 768px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      h1.hero-title { font-size: 2.1rem; }
+      .card { padding: 22px; }
+      .nav-menu { display: none; }
+      .canvas-container { height: 260px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Apple Navigation Bar -->
+  <header class="apple-nav">
+    <div class="nav-container">
+      <a href="https://layerzero.io.vn" target="_blank" rel="noopener noreferrer" class="nav-brand" title="Mở trang chủ LayerZero Studio">
+        <img src="assets/app-icon.png" alt="LayerZero Studio Logo" class="brand-logo" />
+        <span>LayerZero Studio</span>
+      </a>
+      <ul class="nav-menu">
+        <li><a href="#pipeline" class="active">Kiến trúc</a></li>
+        <li><a href="#profiler">Thuật toán 3D</a></li>
+        <li><a href="#ai-engine">Bộ não AI</a></li>
+        <li><a href="#patching">Can thiệp Mesh</a></li>
+        <li><a href="#codemap">Bản đồ Code</a></li>
+        <li>
+          <a href="https://layerzero.io.vn" target="_blank" rel="noopener noreferrer" class="nav-home-btn">
+            layerzero.io.vn ↗
+          </a>
+        </li>
+        <li>
+          <a href="https://github.com/nnmduc/layerzero" target="_blank" rel="noopener noreferrer" class="nav-github-btn">
+            GitHub Repo ↗
+          </a>
+        </li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <div class="hero-wrapper">
+    <div class="apple-badge">
+      <span class="dot"></span>
+      Tài liệu Đặc tả Kỹ thuật v2.0
+    </div>
+    <h1 class="hero-title">Chuẩn đoán &amp; Tối ưu Mẫu in 3D<br>Dựa trên Hình thái học Thực nghiệm</h1>
+    <p class="hero-subtitle">
+      Khám phá cách LayerZero Studio vận dụng <strong>Toán học Vector NumPy</strong> và 
+      <strong>Headless AI Agent</strong> để giải phẫu file <code>.3mf</code>/<code>.stl</code>, 
+      phát hiện bẫy lỗi Slicer và tự động vá lưới 3D an toàn mà không làm hỏng màu sắc hay chi tiết gốc.
+    </p>
+    <div class="hero-metrics">
+      <span>Tốc độ xử lý: <b>&lt; 1.2s / 1.8M tam giác</b></span>
+      <span>•</span>
+      <span>Target: <b>Bambu Lab A1 + PLA Lite</b></span>
+      <span>•</span>
+      <span>Bảo toàn: <b>100% Đa sắc AMS</b></span>
+      <span>•</span>
+      <span>Trang chủ: <a href="https://layerzero.io.vn" target="_blank" rel="noopener noreferrer" style="color: var(--accent); text-decoration: none; font-weight: 600;">layerzero.io.vn ↗</a></span>
+      <span>•</span>
+      <span>Repo: <a href="https://github.com/nnmduc/layerzero" target="_blank" rel="noopener noreferrer" style="color: var(--accent); text-decoration: none; font-weight: 600;">github.com/nnmduc/layerzero ↗</a></span>
+    </div>
+
+    <!-- Generated Apple-Style Hero Concept Illustration -->
+    <div class="hero-image-box">
+      <img src="assets/3d_print_optimization_hero.jpg" alt="3D Print Optimization Visualization" />
+      <div class="hero-image-caption">
+        <span><b>Hình 1.1:</b> Diễn họa 3D kiến trúc tối ưu hóa First Layer & lưới tam giác trên bàn in Textured PEI</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--accent);">LayerZero Studio v2.0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="main-content">
+
+    <!-- 1. PIPELINE -->
+    <section id="pipeline">
+      <div class="section-header">
+        <div class="section-tag">Kiến trúc Hệ thống</div>
+        <h2 class="section-title">1. Quy trình Pipeline 3 Pha Khép kín</h2>
+        <p class="section-desc">
+          Mô hình hoạt động dựa trên sự phân tách rõ ràng giữa phân tích dữ liệu hình học, suy luận kỹ thuật và thực thi nhị phân.
+        </p>
+      </div>
+
+      <div class="grid-3">
+        <div class="card" style="padding: 24px;">
+          <div class="feature-item">
+            <div class="feature-icon-box">1</div>
+            <div class="feature-content">
+              <h4>Đo đạc Hình học</h4>
+              <p>Trích xuất toàn bộ vertex, tam giác, pháp tuyến và vùng tiếp xúc tại Z=0 bằng NumPy trong &lt; 1.2s.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="padding: 24px;">
+          <div class="feature-item">
+            <div class="feature-icon-box" style="background: rgba(175, 82, 222, 0.1); color: var(--tag-purple);">2</div>
+            <div class="feature-content">
+              <h4>Chẩn đoán Đa tác nhân</h4>
+              <p>Claude Code / agy chạy ngầm (Unleashed mode) phân tích nguy cơ cơ khí và thẩm mỹ theo JSON Schema chuẩn.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="padding: 24px;">
+          <div class="feature-item">
+            <div class="feature-icon-box" style="background: rgba(52, 199, 89, 0.1); color: var(--tag-green);">3</div>
+            <div class="feature-content">
+              <h4>Vá Lưới &amp; Cấu hình</h4>
+              <p>Cắt phẳng đáy khớp cầu, bọc đài đỡ 360° và tiêm cấu hình Slicer riêng biệt cho từng chi tiết ốc vít.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. PROFILER & MATH -->
+    <section id="profiler">
+      <div class="section-header">
+        <div class="section-tag">Toán học &amp; Giải thuật</div>
+        <h2 class="section-title">2. Phân tích Hình thái học Lưới 3D (NumPy)</h2>
+        <p class="section-desc">
+          Tọa lạc tại <a class="file-ref" href="https://github.com/nnmduc/layerzero/blob/main/backend/profiler.py" target="_blank" rel="noopener noreferrer">backend/profiler.py ↗</a>, 
+          hệ thống phân giải toàn bộ file mô hình thành các mảng vector để thực hiện các phép chiếu không gian chính xác.
+        </p>
+      </div>
+
+      <!-- 2.1 Affine Transform -->
+      <div class="card">
+        <div class="feature-content">
+          <h4>2.1. Ma trận Biến đổi Không gian Thế giới &amp; Thuật toán Đảo Winding</h4>
+          <p style="margin-top: 6px;">
+            Mỗi đối tượng trong file <code>.3mf</code> được định vị bởi ma trận 12 số thực: <code>[m00..m22, tx, ty, tz]</code>. 
+            Để biết chính xác độ cao và hướng quay trên đĩa in, đỉnh cục bộ phải được nhân với ma trận quay và cộng vector tịnh tiến. 
+            Đồng thời, khi người dùng mirror chi tiết, định thức ma trận $\det(M) &lt; 0$ làm đảo ngược vector pháp tuyến hướng vào trong; thuật toán sẽ tự động phát hiện và đảo thứ tự đỉnh để pháp tuyến hướng chuẩn ra ngoài.
+          </p>
+
+          <div class="math-panel">
+            [x', y', z'] = [x, y, z] @ M_{3×3} + [t_x, t_y, t_z]
+            <br>
+            Nếu det(M_{3×3}) &lt; 0  ==&gt;  Swap các cột tam giác: [0, 2, 1]
+          </div>
+
+          <!-- INTERACTIVE ANIMATION 1: Winding & Normal Vector 3D Inspector -->
+          <div class="sim-widget">
+            <div class="sim-header">
+              <div class="sim-title-group">
+                <span class="sim-badge-motion">Animation 3D</span>
+                <span class="sim-title">Diễn họa Đảo Hướng Vector Pháp Tuyến khi Mirror Chi tiết</span>
+              </div>
+              <div class="sim-controls">
+                <button id="btnNormal" class="sim-btn active">1. det &gt; 0: Chuẩn</button>
+                <button id="btnMirror" class="sim-btn">2. Mirror: Lỗi Lộn Mặt</button>
+                <button id="btnFixWinding" class="sim-btn">3. LayerZero Fix [0, 2, 1]</button>
+              </div>
+            </div>
+            <div class="canvas-container">
+              <canvas id="windingCanvas"></canvas>
+            </div>
+            <div class="sim-footer-bar">
+              <div id="windingDesc" style="color: var(--text-secondary);">
+                Trạng thái: <b>Bình thường</b> — Vector pháp tuyến màu xanh dương chỉ vuông góc ra ngoài bề mặt.
+              </div>
+              <div id="windingBadge" class="sim-status pill pill-green">
+                ● Outward Normal OK
+              </div>
+            </div>
+          </div>
+
+          <div class="code-window">
+            <div class="code-window-bar">
+              <div class="window-dots">
+                <span class="dot-mac dot-close"></span>
+                <span class="dot-mac dot-min"></span>
+                <span class="dot-mac dot-max"></span>
+              </div>
+              <a class="code-title" href="https://github.com/nnmduc/layerzero/blob/main/backend/profiler.py#L179-L198" target="_blank" rel="noopener noreferrer">
+                <span>backend/profiler.py</span>
+                <span class="code-badge">Lines 179–198 &amp; 737–743 ↗</span>
+              </a>
+            </div>
+            <pre class="code-block"><code><span class="kw">def</span> <span class="fn">_apply_3mf_transform</span>(verts: np.ndarray, tf: <span class="cls">list</span>[<span class="cls">float</span>]) -&gt; np.ndarray:
+    <span class="kw">if</span> <span class="fn">len</span>(tf) &lt; <span class="num">12</span>:
+        <span class="kw">return</span> verts
+    mat = np.array([
+        [tf[<span class="num">0</span>], tf[<span class="num">1</span>], tf[<span class="num">2</span>]],
+        [tf[<span class="num">3</span>], tf[<span class="num">4</span>], tf[<span class="num">5</span>]],
+        [tf[<span class="num">6</span>], tf[<span class="num">7</span>], tf[<span class="num">8</span>]],
+    ], dtype=np.float32)
+    trans = np.array([tf[<span class="num">9</span>], tf[<span class="num">10</span>], tf[<span class="num">11</span>]], dtype=np.float32)
+    <span class="kw">return</span> verts @ mat + trans
+
+<span class="cm"># Tự động sửa lật mặt tam giác khi chi tiết bị mirror trong slicer:</span>
+<span class="kw">if</span> np.linalg.det(m_c) &lt; <span class="num">0</span>:
+    st_tf = st_tf[:, [<span class="num">0</span>, <span class="num">2</span>, <span class="num">1</span>]]</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2.2 Footprint Audit -->
+      <div class="card">
+        <div class="feature-content">
+          <h4>2.2. Kiểm toán Diện tích Tiếp xúc Đáy Z = 0 (Footprint Audit)</h4>
+          <p style="margin-top: 6px;">
+            Trên các dòng máy giường trượt trục Y (như Bambu Lab A1), mẫu in dễ bị văng khỏi bàn nếu đáy là hình cầu (Ball Joint) 
+            hoặc đầu nhọn. Thuật toán so sánh bounding box tại $Z \le 0.20\text{mm}$ (Layer 1) với $Z \le 2.0\text{mm}$ (Layer 10).
+          </p>
+
+          <!-- INTERACTIVE ANIMATION 2: Ball-Joint Wobble & Mesh Flattening Motion Simulator -->
+          <div class="sim-widget">
+            <div class="sim-header">
+              <div class="sim-title-group">
+                <span class="sim-badge-motion">Physics Simulation</span>
+                <span class="sim-title">Mô phỏng Quán tính Trục Y &amp; Lực Lật Mẫu khi In Cao trên Bed-Slinger</span>
+              </div>
+              <div class="sim-controls">
+                <button id="btnOriginFoot" class="sim-btn active">Gốc: Chân Cầu Nhỏ (3mm)</button>
+                <button id="btnFlattenFoot" class="sim-btn">LayerZero: Vạt Phẳng 0.8mm (9mm)</button>
+              </div>
+            </div>
+            <div class="canvas-container">
+              <canvas id="wobbleCanvas"></canvas>
+            </div>
+            <div class="sim-footer-bar">
+              <div class="sim-slider-wrap">
+                <label for="accelSlider">Gia tốc bàn Y:</label>
+                <input id="accelSlider" type="range" min="1000" max="8000" step="500" value="4500" />
+                <span id="accelVal" style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">4500 mm/s²</span>
+              </div>
+              <div id="wobbleStatus" class="sim-status pill pill-red">
+                ⚠️ Mẫu Rung Lắc &amp; Bung Khỏi Bàn
+              </div>
+            </div>
+          </div>
+
+          <div class="code-window">
+            <div class="code-window-bar">
+              <div class="window-dots">
+                <span class="dot-mac dot-close"></span>
+                <span class="dot-mac dot-min"></span>
+                <span class="dot-mac dot-max"></span>
+              </div>
+              <a class="code-title" href="https://github.com/nnmduc/layerzero/blob/main/backend/profiler.py#L300-L312" target="_blank" rel="noopener noreferrer">
+                <span>backend/profiler.py</span>
+                <span class="code-badge">Lines 300–312 &amp; 388–393 ↗</span>
+              </a>
+            </div>
+            <pre class="code-block"><code><span class="cm"># Lọc tập hợp các đỉnh tiếp xúc tại Layer 1 (Z &lt;= 0.20mm) vs Layer 10 (Z &lt;= 2.0mm)</span>
+v02 = verts[verts[:, <span class="num">2</span>] - min_z &lt;= <span class="num">0.20</span>]
+v20 = verts[verts[:, <span class="num">2</span>] - min_z &lt;= <span class="num">2.00</span>]
+
+l1_vertex_count = <span class="cls">int</span>(v02.shape[<span class="num">0</span>])
+fp02_x = <span class="fn">round</span>(<span class="cls">float</span>(v02[:, <span class="num">0</span>].max() - v02[:, <span class="num">0</span>].min()), <span class="num">2</span>) <span class="kw">if</span> l1_vertex_count &gt; <span class="num">0</span> <span class="kw">else</span> <span class="num">0.0</span>
+fp02_y = <span class="fn">round</span>(<span class="cls">float</span>(v02[:, <span class="num">1</span>].max() - v02[:, <span class="num">1</span>].min()), <span class="num">2</span>) <span class="kw">if</span> l1_vertex_count &gt; <span class="num">0</span> <span class="kw">else</span> <span class="num">0.0</span>
+
+<span class="cm"># QUY TẮC NHẬN DIỆN KHỚP CẦU NGUY CƠ CAO (PINPOINT_BALL_BASE):</span>
+<span class="kw">if</span> <span class="kw">not</span> is_screw_or_fastener <span class="kw">and</span> span_z &gt; <span class="num">22.0</span>:
+    <span class="kw">if</span> fp02_x &lt; <span class="num">6.5</span> <span class="kw">or</span> fp02_y &lt; <span class="num">6.5</span> <span class="kw">or</span> l1_vertex_count &lt; <span class="num">95</span>:
+        <span class="kw">if</span> fp20_x &gt; fp02_x * <span class="num">1.35</span> <span class="kw">or</span> fp20_y &gt; fp02_y * <span class="num">1.35</span>:
+            archetypes.append(<span class="str">"Đáy khớp cầu / Điểm nhỏ"</span>)
+            morphology_flags.append(<span class="str">"PINPOINT_BALL_BASE"</span>)</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2.3 Cylindrical Score -->
+      <div class="card">
+        <div class="feature-content">
+          <h4>2.3. Giải thuật Tính Điểm Đối xứng Trụ tròn (Cylindrical Symmetry Score)</h4>
+          <p style="margin-top: 6px;">
+            Mô hình hình trụ tròn nhẵn hoàn toàn không có góc cạnh sắc để ẩn đường ghép lớp (Z-Seam). 
+            Thuật toán đo độ tỏa tròn của vector pháp tuyến so với vector nối từ tâm hình học đến mặt tam giác:
+          </p>
+
+          <div class="math-panel">
+            \vec{R}_i = \text{tri\_center}_{xy, i} - \text{center}_{xy}
+            <br>
+            \text{dot}_i = \frac{|\vec{R}_i \cdot \vec{n}_{xy, i}|}{\|\vec{R}_i\| \cdot \|\vec{n}_{xy, i}\|}
+            \quad \implies \quad \text{Score} = \frac{\sum (\text{dot}_i \cdot S_i)}{\sum S_i}
+          </div>
+
+          <!-- INTERACTIVE ANIMATION 3: Scarf Joint Seam Motion Animator -->
+          <div class="sim-widget">
+            <div class="sim-header">
+              <div class="sim-title-group">
+                <span class="sim-badge-motion">Extrusion Motion</span>
+                <span class="sim-title">Diễn họa Nozzle Di chuyển &amp; Triệt tiêu Sẹo Z-Seam Bằng Scarf Joint (155°)</span>
+              </div>
+              <div class="sim-controls">
+                <button id="btnClassicSeam" class="sim-btn active">Classic Aligned Seam (Sẹo lồi)</button>
+                <button id="btnScarfSeam" class="sim-btn">LayerZero Scarf Joint 155° (Phẳng)</button>
+              </div>
+            </div>
+            <div class="canvas-container">
+              <canvas id="seamCanvas"></canvas>
+            </div>
+            <div class="sim-footer-bar">
+              <div id="seamDesc" style="color: var(--text-secondary);">
+                Chế độ Classic: Đầu phun dừng giật cục tại điểm 0°/360°, nhựa tràn tạo thành 1 cục sẹo (blob) cộm trên bề mặt trụ tròn.
+              </div>
+              <div id="seamStatus" class="sim-status pill pill-red">
+                ● Lộ Vết Sẹo Dọc (Z-Seam Scar)
+              </div>
+            </div>
+          </div>
+
+          <div class="code-window">
+            <div class="code-window-bar">
+              <div class="window-dots">
+                <span class="dot-mac dot-close"></span>
+                <span class="dot-mac dot-min"></span>
+                <span class="dot-mac dot-max"></span>
+              </div>
+              <a class="code-title" href="https://github.com/nnmduc/layerzero/blob/main/backend/profiler.py#L345-L363" target="_blank" rel="noopener noreferrer">
+                <span>backend/profiler.py</span>
+                <span class="code-badge">Lines 345–363 ↗</span>
+              </a>
+            </div>
+            <pre class="code-block"><code>center_xy = (min_xyz[:<span class="num">2</span>] + max_xyz[:<span class="num">2</span>]) * <span class="num">0.5</span>
+<span class="kw">if</span> np.any(vert_wall_mask):
+    tri_centers_xy = ((v1[vert_wall_mask, :<span class="num">2</span>] + v2[vert_wall_mask, :<span class="num">2</span>] + v3[vert_wall_mask, :<span class="num">2</span>]) / <span class="num">3.0</span>) - center_xy
+    r_len = np.linalg.norm(tri_centers_xy, axis=<span class="num">1</span>)
+    n_xy = np.linalg.norm(normals[vert_wall_mask, :<span class="num">2</span>], axis=<span class="num">1</span>)
+    valid_r = (r_len &gt; <span class="num">1e-3</span>) &amp; (n_xy &gt; <span class="num">1e-3</span>)
+    <span class="kw">if</span> np.any(valid_r):
+        dots = np.abs(np.sum(tri_centers_xy[valid_r] * normals[vert_wall_mask, :<span class="num">2</span>][valid_r], axis=<span class="num">1</span>) / (r_len[valid_r] * n_xy[valid_r]))
+        w_areas = tri_areas[vert_wall_mask][valid_r]
+        cylindrical_score = <span class="fn">round</span>(<span class="cls">float</span>(np.sum(dots * w_areas) / <span class="fn">max</span>(<span class="cls">float</span>(w_areas.sum()), <span class="num">1e-5</span>)), <span class="num">3</span>)</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2.4 Morphology Table -->
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <div style="padding: 24px 28px 16px;">
+          <h4 style="font-size: 1.05rem; font-weight: 600;">2.4. Bảng Tra cứu Cờ Hình thái học &amp; Nguy cơ Lỗi In</h4>
+          <p style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 4px;">
+            Mỗi cờ hình thái được ánh xạ trực tiếp đến một giải pháp vật lý và tham số Slicer tương ứng.
+          </p>
+        </div>
+
+        <div class="table-container" style="border: none; border-radius: 0;">
+          <table class="apple-table">
+            <thead>
+              <tr>
+                <th>Cờ Hình thái</th>
+                <th>Điều kiện Kích hoạt</th>
+                <th>Nguy cơ / Vấn đề</th>
+                <th>Giải pháp Kỹ thuật</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="pill pill-red">PINPOINT_BALL_BASE</span></td>
+                <td>$fp_{0.2} &lt; 6.5\text{mm} \land fp_{2.0} &gt; 1.35 \times fp_{0.2}$</td>
+                <td>Chân cầu nhỏ, dễ rung lắc và văng mẫu giữa chừng</td>
+                <td>Vạt phẳng đáy $\Delta z = 0.8\text{mm}$ (tăng 300% diện tích bám)</td>
+              </tr>
+              <tr>
+                <td><span class="pill pill-amber">MISSING_BASE_SUPPORTS</span></td>
+                <td>Gầm $Z \le 8\text{mm}$ có $n_z &lt; -0.5$ nhưng thiếu Enforcer</td>
+                <td>Gầm dốc không có trụ đỡ, sợi nhựa bị rơi tự do</td>
+                <td>Tự động vẽ Support Enforcer 360° ôm khít gầm</td>
+              </tr>
+              <tr>
+                <td><span class="pill pill-red">ACCIDENTAL_BASE_BLOCKERS</span></td>
+                <td>Số tam giác `paint_supports="8"` tại gầm $&gt; 80$</td>
+                <td>Tác giả vô tình cấm support khiến đáy rỗng chân</td>
+                <td>Bóc gỡ toàn bộ Support Blocker ở độ cao $Z \le 8\text{mm}$</td>
+              </tr>
+              <tr>
+                <td><span class="pill pill-blue">SLOTTED_OR_SMALL_SCREW</span></td>
+                <td>Kích thước ốc nhỏ &amp; có rãnh tua-vít xẻ đôi Layer 1</td>
+                <td>Đầu ốc bị tách đôi dễ bung, ren giòn gãy khi siết</td>
+                <td>Outer Brim 5mm (gap 0.04), 6 Walls Concentric 100%, vách 35mm/s</td>
+              </tr>
+              <tr>
+                <td><span class="pill pill-purple">DOMED_CURVATURE_TOP</span></td>
+                <td>$z_{\text{ratio}} \ge 0.55 \land 0.68 \le n_z &lt; 0.985$</td>
+                <td>Mặt vòm cong lộ rõ các đường vân bậc thang xấu</td>
+                <td>Adaptive Layer Height 0.16mm + Concentric Top Surface</td>
+              </tr>
+              <tr>
+                <td><span class="pill pill-green">FLAT_HORIZONTAL_TOP</span></td>
+                <td>$z_{\text{ratio}} \ge 0.60 \land n_z \ge 0.992 \land S &gt; 140\text{mm}^2$</td>
+                <td>Mặt đỉnh phẳng gồ ghề các đường line song song</td>
+                <td>Per-Object Ironing (Là phẳng mặt trên cùng: Flow 12%)</td>
+              </tr>
+              <tr>
+                <td><span class="pill pill-green">SMOOTH_CYLINDER_SEAM</span></td>
+                <td>$\text{Cylindrical Score} &gt; 0.86 \land S_{\text{wall}} &gt; 120\text{mm}^2$</td>
+                <td>Sẹo giáp vòng Z-Seam lộ rõ trên mặt trụ tròn</td>
+                <td>Scarf Joint Seam (vát mép 155°) + Nội suy cung Arc G2/G3</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. HYBRID AI & ENGINE -->
+    <section id="ai-engine">
+      <div class="section-header">
+        <div class="section-tag">Suy luận Chuyên gia</div>
+        <h2 class="section-title">3. Bộ não Chẩn đoán Tối ưu Đa tác nhân</h2>
+        <p class="section-desc">
+          Kết hợp tốc độ của bộ luật tất định (Morphology Rule Engine) và trí tuệ suy luận của Headless AI Agent.
+        </p>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <span class="pill pill-green" style="margin-bottom: 14px;">100% Offline Fallback</span>
+          <h4>Deterministic Baseline Engine</h4>
+          <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 8px;">
+            Được định nghĩa tại <code>build_baseline_audit()</code> trong <a class="file-ref" href="https://github.com/nnmduc/layerzero/blob/main/backend/patcher.py#L33-L280" target="_blank" rel="noopener noreferrer">backend/patcher.py ↗</a>. 
+            So sánh tức thì cấu hình tác giả với <strong>Bambu Studio System Baseline</strong>, sinh ngay bảng đối chiếu 3 cột và các thẻ chẩn đoán chỉ trong vài mili-giây.
+          </p>
+        </div>
+
+        <div class="card">
+          <span class="pill pill-purple" style="margin-bottom: 14px;">Unleashed Agent</span>
+          <h4>Headless Claude Code &amp; agy CLI</h4>
+          <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 8px;">
+            Được định nghĩa tại <a class="file-ref" href="https://github.com/nnmduc/layerzero/blob/main/backend/ai_runner.py" target="_blank" rel="noopener noreferrer">backend/ai_runner.py ↗</a>. 
+            AI agent chạy độc lập trong background, nhận telemetry đo đạc từ profiler, có quyền đọc trực tiếp file và chạy lệnh Bash để thẩm định trước khi xuất kết quả JSON Schema.
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h4 style="margin-bottom: 12px;">Đoạn Code Khởi chạy Headless AI Agent với Ràng buộc JSON Schema</h4>
+        <div class="code-window" style="margin-top: 0;">
+          <div class="code-window-bar">
+            <div class="window-dots">
+              <span class="dot-mac dot-close"></span>
+              <span class="dot-mac dot-min"></span>
+              <span class="dot-mac dot-max"></span>
+            </div>
+            <a class="code-title" href="https://github.com/nnmduc/layerzero/blob/main/backend/ai_runner.py#L274-L284" target="_blank" rel="noopener noreferrer">
+              <span>backend/ai_runner.py</span>
+              <span class="code-badge">Lines 274–284 ↗</span>
+            </a>
+          </div>
+          <pre class="code-block"><code>cmd = [
+    claude_bin,                     <span class="cm"># Hoặc agy_bin</span>
+    <span class="str">"-p"</span>, prompt,
+    <span class="str">"--dangerously-skip-permissions"</span>,
+    <span class="str">"--output-format"</span>, <span class="str">"stream-json"</span>,
+    <span class="str">"--verbose"</span>,
+    <span class="str">"--json-schema"</span>, schema_str,   <span class="cm"># backend/schemas/audit_schema.json</span>
+]
+proc = <span class="kw">await</span> asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE)</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. NON-DESTRUCTIVE PATCHING -->
+    <section id="patching">
+      <div class="section-header">
+        <div class="section-tag">Thực thi Nhị phân</div>
+        <h2 class="section-title">4. Kỹ thuật Vá Lưới &amp; Cấu hình Không Phá Hủy</h2>
+        <p class="section-desc">
+          Toàn bộ quy trình sửa đổi nằm trong <a class="file-ref" href="https://github.com/nnmduc/layerzero/blob/main/backend/patcher.py" target="_blank" rel="noopener noreferrer">backend/patcher.py ↗</a>. 
+          LayerZero sửa trực tiếp các thẻ XML của file <code>.3mf</code> trong bộ nhớ mà không phá vỡ bảng màu hay cài đặt máy.
+        </p>
+      </div>
+
+      <!-- 4.1 FLATTEN_BOTTOM -->
+      <div class="card">
+        <div class="feature-content">
+          <h4>4.1. Thuật toán Cắt Phẳng Đáy Lưới 3D (FLATTEN_BOTTOM)</h4>
+          <p style="margin-top: 6px;">
+            Khi vạt phẳng đáy $\Delta z = 0.8\text{mm}$, các đỉnh bên dưới được kẹp cố định, toàn bộ lưới được dịch $-\Delta z / 2$ 
+            để giữ tâm đối xứng, và ma trận biến đổi thế giới của đối tượng được cập nhật tương ứng để mặt đáy phẳng mới tiếp xúc hoàn hảo tại $Z_{\text{world}} = 0.00\text{mm}$.
+          </p>
+
+          <div class="code-window">
+            <div class="code-window-bar">
+              <div class="window-dots">
+                <span class="dot-mac dot-close"></span>
+                <span class="dot-mac dot-min"></span>
+                <span class="dot-mac dot-max"></span>
+              </div>
+              <a class="code-title" href="https://github.com/nnmduc/layerzero/blob/main/backend/patcher.py#L578-L587" target="_blank" rel="noopener noreferrer">
+                <span>backend/patcher.py</span>
+                <span class="code-badge">Lines 578–587 &amp; 853–869 ↗</span>
+              </a>
+            </div>
+            <pre class="code-block"><code><span class="cm"># 1. Kẹp phẳng đỉnh tại Z đáy và dời tâm đối xứng:</span>
+<span class="kw">if</span> do_flat:
+    <span class="kw">for</span> v <span class="kw">in</span> v_els:
+        z = <span class="cls">float</span>(v.attrib[<span class="str">"z"</span>])
+        <span class="kw">if</span> z &lt; min_z + dz:
+            v.attrib[<span class="str">"z"</span>] = f<span class="str">"{min_z + dz - half_dz:.7f}"</span>
+            flattened_verts += <span class="num">1</span>
+        <span class="kw">else</span>:
+            v.attrib[<span class="str">"z"</span>] = f<span class="str">"{z - half_dz:.7f}"</span>
+
+<span class="cm"># 2. Cập nhật ma trận dịch chuyển Z của đối tượng trong 3D/3dmodel.model:</span>
+<span class="kw">for</span> item_el <span class="kw">in</span> root_3d.findall(f<span class="str">".//{{{NS_URI_M}}}item"</span>):
+    <span class="kw">if</span> item_el.attrib.get(<span class="str">"objectid"</span>) == oid <span class="kw">and</span> <span class="str">"transform"</span> <span class="kw">in</span> item_el.attrib:
+        parts = item_el.attrib[<span class="str">"transform"</span>].split()
+        parts[<span class="num">11</span>] = f<span class="str">"{float(parts[11]) - half_dz:.7f}"</span>   <span class="cm"># Phần tử t_z</span>
+        item_el.attrib[<span class="str">"transform"</span>] = <span class="str">" "</span>.join(parts)</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4.2 REINFORCE_SUPPORTS -->
+      <div class="card">
+        <div class="feature-content">
+          <h4>4.2. Bọc Đài Đỡ Support Enforcer 360° (REINFORCE_SUPPORTS)</h4>
+          <p style="margin-top: 6px;">
+            Tự động tính vector pháp tuyến tam giác gầm và tiêm thuộc tính <code>paint_supports="4"</code> 
+            trong khoảng độ cao $0.85\text{mm} \le Z \le 8.0\text{mm}$, đồng thời xóa cọ support tại mặt phẳng $Z=0$ để đáy dính trực tiếp vào PEI.
+          </p>
+
+          <div class="code-window">
+            <div class="code-window-bar">
+              <div class="window-dots">
+                <span class="dot-mac dot-close"></span>
+                <span class="dot-mac dot-min"></span>
+                <span class="dot-mac dot-max"></span>
+              </div>
+              <a class="code-title" href="https://github.com/nnmduc/layerzero/blob/main/backend/patcher.py#L560-L577" target="_blank" rel="noopener noreferrer">
+                <span>backend/patcher.py</span>
+                <span class="code-badge">Lines 560–577 ↗</span>
+              </a>
+            </div>
+            <pre class="code-block"><code><span class="kw">if</span> do_sup:
+    <span class="kw">for</span> t <span class="kw">in</span> mesh_parent.findall(f<span class="str">".//{{{NS_URI_M}}}triangle"</span>):
+        z_avg = (v1[<span class="num">2</span>] + v2[<span class="num">2</span>] + v3[<span class="num">2</span>]) / <span class="num">3.0</span> - min_z
+        nz = (v2[<span class="num">0</span>] - v1[<span class="num">0</span>]) * (v3[<span class="num">1</span>] - v1[<span class="num">1</span>]) - (v2[<span class="num">1</span>] - v1[<span class="num">1</span>]) * (v3[<span class="num">0</span>] - v1[<span class="num">0</span>])
+        length = math.hypot(nx, ny, nz)
+        <span class="kw">if</span> length &gt; <span class="num">1e-9</span>:
+            nz /= length
+        
+        <span class="cm"># Gán Support Enforcer ("4") cho các mặt chúc xuống ở gầm chân</span>
+        <span class="kw">if</span> (dz + <span class="num">0.05</span>) &lt;= z_avg &lt;= <span class="num">8.0</span> <span class="kw">and</span> nz &lt; -<span class="num">0.10</span>:
+            t.attrib[<span class="str">"paint_supports"</span>] = <span class="str">"4"</span>
+        <span class="cm"># Xóa support tại mặt phẳng Z=0 để nhựa dính 100% vào bàn PEI:</span>
+        <span class="kw">elif</span> z_avg &lt; (dz + <span class="num">0.05</span>) <span class="kw">and</span> <span class="str">"paint_supports"</span> <span class="kw">in</span> t.attrib:
+            <span class="kw">del</span> t.attrib[<span class="str">"paint_supports"</span>]</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4.3 Screws -->
+      <div class="card">
+        <div class="feature-content">
+          <h4>4.3. Tiêm Cấu hình Riêng cho Ốc Vít (Per-Object Overrides)</h4>
+          <p style="margin-top: 6px;">
+            Ghi đè riêng biệt vào thẻ <code>&lt;object id="N"&gt;</code> trong <code>Metadata/model_settings.config</code>, 
+            tránh làm giảm tốc độ của các chi tiết lớn khác trên cùng bàn in.
+          </p>
+
+          <!-- INTERACTIVE ANIMATION 4: Screw Head Layer 1 Brim Fusion -->
+          <div class="sim-widget">
+            <div class="sim-header">
+              <div class="sim-title-group">
+                <span class="sim-badge-motion">Layer 1 Slice</span>
+                <span class="sim-title">Diễn họa Cắt Lớp Đầu Tiên (Z=0.2mm): Khóa Rãnh Tua-Vít Đầu Ốc bằng Outer Brim</span>
+              </div>
+              <div class="sim-controls">
+                <button id="btnScrewAuthor" class="sim-btn active">Tác giả: No Brim (2 Đảo Tách Đôi)</button>
+                <button id="btnScrewLayerZero" class="sim-btn">LayerZero: Outer Brim 5mm + Concentric</button>
+              </div>
+            </div>
+            <div class="canvas-container">
+              <canvas id="screwCanvas"></canvas>
+            </div>
+            <div class="sim-footer-bar">
+              <div id="screwDesc" style="color: var(--text-secondary);">
+                Tác giả (No Brim): Rãnh tua-vít xẻ đầu ốc làm 2 mảnh trăng khuyết riêng biệt tại Layer 1, diện tích bám cực nhỏ dễ bị đầu phun gạt bung.
+              </div>
+              <div id="screwStatus" class="sim-status pill pill-red">
+                ⚠️ Dễ Bung Khỏi Bàn Khi In Nhanh
+              </div>
+            </div>
+          </div>
+
+          <div class="code-window">
+            <div class="code-window-bar">
+              <div class="window-dots">
+                <span class="dot-mac dot-close"></span>
+                <span class="dot-mac dot-min"></span>
+                <span class="dot-mac dot-max"></span>
+              </div>
+              <a class="code-title" href="https://github.com/nnmduc/layerzero/blob/main/backend/patcher.py#L752-L766" target="_blank" rel="noopener noreferrer">
+                <span>backend/patcher.py</span>
+                <span class="code-badge">Lines 752–766 ↗</span>
+              </a>
+            </div>
+            <pre class="code-block"><code><span class="kw">if</span> do_optimize_screws <span class="kw">and</span> <span class="str">"SLOTTED_OR_SMALL_SCREW"</span> <span class="kw">in</span> flags:
+    per_object_patches.setdefault(oid, {}).update({
+        <span class="str">"brim_type"</span>: <span class="str">"outer_only"</span>,
+        <span class="str">"brim_width"</span>: <span class="str">"5"</span>,               <span class="cm"># Brim 5mm khóa hai nửa cung tròn đầu ốc</span>
+        <span class="str">"brim_object_gap"</span>: <span class="str">"0.04"</span>,
+        <span class="str">"wall_loops"</span>: <span class="str">"6"</span>,                <span class="cm"># 6 lớp vách đặc chống xoắn gãy ren</span>
+        <span class="str">"sparse_infill_density"</span>: <span class="str">"100%"</span>,
+        <span class="str">"sparse_infill_pattern"</span>: <span class="str">"concentric"</span>, <span class="cm"># Infill đồng tâm triệt tiêu rung lắc</span>
+        <span class="str">"outer_wall_speed"</span>: <span class="str">"35"</span>,         <span class="cm"># Giảm tốc riêng vách ngoài ốc để ren sắc</span>
+        <span class="str">"inner_wall_speed"</span>: <span class="str">"50"</span>,
+    })</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. CODE MAP -->
+    <section id="codemap">
+      <div class="section-header">
+        <div class="section-tag">Bản đồ Source Code</div>
+        <h2 class="section-title">5. Danh mục File &amp; Vị trí Dòng Code Trong Git Repo</h2>
+        <p class="section-desc">
+          Bảng tra cứu nhanh các liên kết mã nguồn trên GitHub repository: 
+          <a class="file-ref" href="https://github.com/nnmduc/layerzero" target="_blank" rel="noopener noreferrer">https://github.com/nnmduc/layerzero ↗</a>
+        </p>
+      </div>
+
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <div class="table-container" style="border: none;">
+          <table class="apple-table">
+            <thead>
+              <tr>
+                <th>Tập tin (File Path)</th>
+                <th>Phạm vi Dòng (GitHub Links)</th>
+                <th>Chức năng Chính</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a class="file-ref" href="https://github.com/nnmduc/layerzero/blob/main/backend/profiler.py" target="_blank" rel="noopener noreferrer">backend/profiler.py ↗</a></td>
+                <td>
+                  <a class="line-ref" href="https://github.com/nnmduc/layerzero/blob/main/backend/profiler.py#L179-L198" target="_blank" rel="noopener noreferrer">Lines 179–198</a><br>
+                  <a class="line-ref" href="https://github.com/nnmduc/layerzero/blob/main/backend/profiler.py#L256-L532" target="_blank" rel="noopener noreferrer">Lines 256–532</a><br>
+                  <a class="line-ref" href="https://github.com/nnmduc/layerzero/blob/main/backend/profiler.py#L534-L797" target="_blank" rel="noopener noreferrer">Lines 534–797</a>
+                </td>
+                <td>Đọc 3MF/STL, biến đổi Affine, sửa Winding, tính toán vector pháp tuyến, footprint L1/L10, điểm đối xứng trụ tròn và cờ hình thái học.</td>
+              </tr>
+              <tr>
+                <td><a class="file-ref" href="https://github.com/nnmduc/layerzero/blob/main/backend/patcher.py" target="_blank" rel="noopener noreferrer">backend/patcher.py ↗</a></td>
+                <td>
+                  <a class="line-ref" href="https://github.com/nnmduc/layerzero/blob/main/backend/patcher.py#L33-L280" target="_blank" rel="noopener noreferrer">Lines 33–280</a><br>
+                  <a class="line-ref" href="https://github.com/nnmduc/layerzero/blob/main/backend/patcher.py#L540-L589" target="_blank" rel="noopener noreferrer">Lines 540–589</a><br>
+                  <a class="line-ref" href="https://github.com/nnmduc/layerzero/blob/main/backend/patcher.py#L593-L920" target="_blank" rel="noopener noreferrer">Lines 593–920</a>
+                </td>
+                <td>Sinh báo cáo Baseline tức thì, thực thi cắt phẳng đáy Z, bọc đài Support Enforcer 360°, tiêm Per-Object Overrides và xuất 3MF tối ưu.</td>
+              </tr>
+              <tr>
+                <td><a class="file-ref" href="https://github.com/nnmduc/layerzero/blob/main/backend/ai_runner.py" target="_blank" rel="noopener noreferrer">backend/ai_runner.py ↗</a></td>
+                <td>
+                  <a class="line-ref" href="https://github.com/nnmduc/layerzero/blob/main/backend/ai_runner.py#L51-L118" target="_blank" rel="noopener noreferrer">Lines 51–118</a><br>
+                  <a class="line-ref" href="https://github.com/nnmduc/layerzero/blob/main/backend/ai_runner.py#L160-L215" target="_blank" rel="noopener noreferrer">Lines 160–215</a><br>
+                  <a class="line-ref" href="https://github.com/nnmduc/layerzero/blob/main/backend/ai_runner.py#L238-L380" target="_blank" rel="noopener noreferrer">Lines 238–380</a>
+                </td>
+                <td>Khởi chạy Claude Code &amp; agy CLI ở chế độ Unleashed, ràng buộc JSON schema và stream tiến trình Server-Sent Events (SSE).</td>
+              </tr>
+              <tr>
+                <td><a class="file-ref" href="https://github.com/nnmduc/layerzero/blob/main/backend/schemas/audit_schema.json" target="_blank" rel="noopener noreferrer">backend/schemas/audit_schema.json ↗</a></td>
+                <td><a class="line-ref" href="https://github.com/nnmduc/layerzero/blob/main/backend/schemas/audit_schema.json#L1-L120" target="_blank" rel="noopener noreferrer">Lines 1–120</a></td>
+                <td>Đặc tả JSON Schema chuẩn cho output của AI Agent (Diagnostic Cards + Settings Diff).</td>
+              </tr>
+              <tr>
+                <td><a class="file-ref" href="https://github.com/nnmduc/layerzero/blob/main/backend/main.py" target="_blank" rel="noopener noreferrer">backend/main.py ↗</a></td>
+                <td><a class="line-ref" href="https://github.com/nnmduc/layerzero/blob/main/backend/main.py#L110-L260" target="_blank" rel="noopener noreferrer">Lines 110–260</a></td>
+                <td>FastAPI web service: Quản lý session upload, routing phân tích và xuất file.</td>
+              </tr>
+              <tr>
+                <td><a class="file-ref" href="https://github.com/nnmduc/layerzero/blob/main/frontend/src/components/Viewport3D.tsx" target="_blank" rel="noopener noreferrer">frontend/src/components/Viewport3D.tsx ↗</a></td>
+                <td><a class="line-ref" href="https://github.com/nnmduc/layerzero/blob/main/frontend/src/components/Viewport3D.tsx#L33-L95" target="_blank" rel="noopener noreferrer">Lines 33–95</a></td>
+                <td>Three.js WebGL viewport: Chuyển đổi hệ tọa độ Z-up sang Y-up <code>(x, z, -y)</code> và hiển thị trực quan các vùng hình thái học theo màu sắc.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Apple Footer -->
+  <footer class="apple-footer">
+    <a href="https://layerzero.io.vn" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none;">LayerZero Studio v2.0</a>
+  </footer>
+
+  <!-- INTERACTIVE ANIMATION SCRIPTS -->
+  <script>
+    // -------------------------------------------------------------
+    // Helper: Initialize High-DPI Canvas
+    // -------------------------------------------------------------
+    function initDpiCanvas(canvasId) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return null;
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      return { canvas, ctx, width: rect.width, height: rect.height };
+    }
+
+    // -------------------------------------------------------------
+    // ANIMATION 1: Normal Vector & Winding 3D Interactive Canvas
+    // -------------------------------------------------------------
+    (function setupWindingVisualizer() {
+      const c = document.getElementById('windingCanvas');
+      if (!c) return;
+      let rotX = 0.35, rotY = -0.55;
+      let isDragging = false, lastMouseX = 0, lastMouseY = 0;
+      let windingMode = 'normal'; // 'normal', 'mirror', 'fixed'
+
+      const btnNormal = document.getElementById('btnNormal');
+      const btnMirror = document.getElementById('btnMirror');
+      const btnFix = document.getElementById('btnFixWinding');
+      const desc = document.getElementById('windingDesc');
+      const badge = document.getElementById('windingBadge');
+
+      function setMode(mode) {
+        windingMode = mode;
+        [btnNormal, btnMirror, btnFix].forEach(b => b.classList.remove('active'));
+        if (mode === 'normal') {
+          btnNormal.classList.add('active');
+          desc.innerHTML = 'Trạng thái: <b>det &gt; 0 (Bình thường)</b> — Vector pháp tuyến màu xanh dương chỉ vuông góc ra ngoài bề mặt.';
+          badge.className = 'sim-status pill pill-green';
+          badge.innerHTML = '● Outward Normal OK';
+        } else if (mode === 'mirror') {
+          btnMirror.classList.add('active');
+          desc.innerHTML = 'Trạng thái: <b>det &lt; 0 (Bị Mirror trong Slicer)</b> — Thứ tự đỉnh bị đảo ngược làm vector pháp tuyến chọc ngược vào trong lòng khối rỗng!';
+          badge.className = 'sim-status pill pill-red';
+          badge.innerHTML = '⚠️ Inverted Inward Normal';
+        } else {
+          btnFix.classList.add('active');
+          desc.innerHTML = 'Trạng thái: <b>LayerZero Winding Auto-Correction</b> — Hoán đổi cột [0, 2, 1] đưa vector pháp tuyến lật ngược ra ngoài hoàn hảo!';
+          badge.className = 'sim-status pill pill-blue';
+          badge.innerHTML = '✅ Winding Swapped &amp; Fixed';
+        }
+      }
+
+      btnNormal.addEventListener('click', () => setMode('normal'));
+      btnMirror.addEventListener('click', () => setMode('mirror'));
+      btnFix.addEventListener('click', () => setMode('fixed'));
+
+      c.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+      });
+      window.addEventListener('mouseup', () => isDragging = false);
+      c.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - lastMouseX;
+        const dy = e.clientY - lastMouseY;
+        rotY += dx * 0.01;
+        rotX += dy * 0.01;
+        rotX = Math.max(-1.2, Math.min(1.2, rotX));
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+      });
+
+      function render() {
+        const rect = c.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        if (c.width !== rect.width * dpr || c.height !== rect.height * dpr) {
+          c.width = rect.width * dpr;
+          c.height = rect.height * dpr;
+        }
+        const ctx = c.getContext('2d');
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, rect.width, rect.height);
+
+        const cx = rect.width / 2;
+        const cy = rect.height / 2 + 10;
+        const scale = Math.min(rect.width, rect.height) * 0.32;
+
+        // 3D Projection math
+        function project(x, y, z) {
+          // Rotate around Y
+          let x1 = x * Math.cos(rotY) + z * Math.sin(rotY);
+          let z1 = -x * Math.sin(rotY) + z * Math.cos(rotY);
+          // Rotate around X
+          let y2 = y * Math.cos(rotX) - z1 * Math.sin(rotX);
+          let z2 = y * Math.sin(rotX) + z1 * Math.cos(rotX);
+          return {
+            x: cx + x1 * scale,
+            y: cy - y2 * scale,
+            z: z2
+          };
+        }
+
+        // Draw background grid plane
+        ctx.strokeStyle = '#F0F0F3';
+        ctx.lineWidth = 1;
+        for (let i = -2; i <= 2; i++) {
+          let p1 = project(i * 0.5, -0.6, -1);
+          let p2 = project(i * 0.5, -0.6, 1);
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
+
+          let p3 = project(-1, -0.6, i * 0.5);
+          let p4 = project(1, -0.6, i * 0.5);
+          ctx.beginPath();
+          ctx.moveTo(p3.x, p3.y);
+          ctx.lineTo(p4.x, p4.y);
+          ctx.stroke();
+        }
+
+        // Triangle vertices
+        let v0 = { x: -0.8, y: -0.2, z: -0.5 };
+        let v1 = { x: 0.8, y: -0.2, z: -0.4 };
+        let v2 = { x: 0.0, y: 0.6, z: 0.6 };
+
+        let p0 = project(v0.x, v0.y, v0.z);
+        let p1 = project(v1.x, v1.y, v1.z);
+        let p2 = project(v2.x, v2.y, v2.z);
+
+        // Center of triangle
+        let cent = {
+          x: (v0.x + v1.x + v2.x) / 3,
+          y: (v0.y + v1.y + v2.y) / 3,
+          z: (v0.z + v1.z + v2.z) / 3
+        };
+        let pCent = project(cent.x, cent.y, cent.z);
+
+        // Normal vector direction
+        let nDir = (windingMode === 'mirror') ? -1 : 1;
+        let nEnd = {
+          x: cent.x,
+          y: cent.y + 0.85 * nDir,
+          z: cent.z + 0.35 * nDir
+        };
+        let pNorm = project(nEnd.x, nEnd.y, nEnd.z);
+
+        // Draw solid shaded triangle
+        let grad = ctx.createLinearGradient(p0.x, p0.y, p2.x, p2.y);
+        if (windingMode === 'mirror') {
+          grad.addColorStop(0, 'rgba(255, 59, 48, 0.18)');
+          grad.addColorStop(1, 'rgba(255, 59, 48, 0.06)');
+        } else if (windingMode === 'fixed') {
+          grad.addColorStop(0, 'rgba(52, 199, 89, 0.22)');
+          grad.addColorStop(1, 'rgba(0, 113, 227, 0.12)');
+        } else {
+          grad.addColorStop(0, 'rgba(0, 113, 227, 0.18)');
+          grad.addColorStop(1, 'rgba(0, 113, 227, 0.06)');
+        }
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(p0.x, p0.y);
+        ctx.lineTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.closePath();
+        ctx.fill();
+
+        // Triangle wireframe edges
+        ctx.strokeStyle = (windingMode === 'mirror') ? '#FF3B30' : (windingMode === 'fixed' ? '#34C759' : '#0071E3');
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Vertex Dots & Labels
+        const verts2D = [p0, p1, p2];
+        const labels = (windingMode === 'fixed') ? ['v0 (Swap)', 'v2 (Swap)', 'v1'] : ['v0', 'v1', 'v2'];
+        verts2D.forEach((p, idx) => {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.strokeStyle = '#1D1D1F';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#1D1D1F';
+          ctx.font = '600 11px Inter, sans-serif';
+          ctx.fillText(labels[idx], p.x + 8, p.y - 6);
+        });
+
+        // Draw Normal Arrow
+        ctx.strokeStyle = (windingMode === 'mirror') ? '#FF3B30' : (windingMode === 'fixed' ? '#34C759' : '#0071E3');
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(pCent.x, pCent.y);
+        ctx.lineTo(pNorm.x, pNorm.y);
+        ctx.stroke();
+
+        // Arrow head
+        let angle = Math.atan2(pNorm.y - pCent.y, pNorm.x - pCent.x);
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.beginPath();
+        ctx.moveTo(pNorm.x, pNorm.y);
+        ctx.lineTo(pNorm.x - 12 * Math.cos(angle - Math.PI / 6), pNorm.y - 12 * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(pNorm.x - 12 * Math.cos(angle + Math.PI / 6), pNorm.y - 12 * Math.sin(angle + Math.PI / 6));
+        ctx.closePath();
+        ctx.fill();
+
+        // Normal Text Label
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.font = 'bold 12px JetBrains Mono, monospace';
+        let normText = (windingMode === 'mirror') ? 'vec(n) [INWARD - LỖI]' : 'vec(n) [OUTWARD - CHUẨN]';
+        ctx.fillText(normText, pNorm.x + 10, pNorm.y + 4);
+
+        // Hint overlay
+        ctx.fillStyle = 'rgba(110, 110, 115, 0.7)';
+        ctx.font = '10.5px Inter, sans-serif';
+        ctx.fillText('Kéo chuột để xoay 3D', 14, rect.height - 14);
+
+        ctx.restore();
+        requestAnimationFrame(render);
+      }
+      requestAnimationFrame(render);
+    })();
+
+    // -------------------------------------------------------------
+    // ANIMATION 2: Ball-Joint Wobble & Mesh Flattening Motion Simulator
+    // -------------------------------------------------------------
+    (function setupWobbleSimulator() {
+      const c = document.getElementById('wobbleCanvas');
+      if (!c) return;
+
+      let isFlattened = false;
+      let accel = 4500;
+      let time = 0;
+      let wobbleAngle = 0;
+      let isToppled = false;
+
+      const btnOrigin = document.getElementById('btnOriginFoot');
+      const btnFlatten = document.getElementById('btnFlattenFoot');
+      const slider = document.getElementById('accelSlider');
+      const accelVal = document.getElementById('accelVal');
+      const statusBadge = document.getElementById('wobbleStatus');
+
+      btnOrigin.addEventListener('click', () => {
+        isFlattened = false;
+        btnOrigin.classList.add('active');
+        btnFlatten.classList.remove('active');
+        isToppled = false;
+      });
+
+      btnFlatten.addEventListener('click', () => {
+        isFlattened = true;
+        btnFlatten.classList.add('active');
+        btnOrigin.classList.remove('active');
+        isToppled = false;
+      });
+
+      slider.addEventListener('input', (e) => {
+        accel = parseInt(e.target.value, 10);
+        accelVal.textContent = accel + ' mm/s²';
+        isToppled = false;
+      });
+
+      function render() {
+        const rect = c.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        if (c.width !== rect.width * dpr || c.height !== rect.height * dpr) {
+          c.width = rect.width * dpr;
+          c.height = rect.height * dpr;
+        }
+        const ctx = c.getContext('2d');
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, rect.width, rect.height);
+
+        time += 0.04;
+
+        // Bed slinger motion (Harmonic Y movement)
+        const bedFreq = 1.8;
+        const bedAmp = 42 * (accel / 4500);
+        const bedX = rect.width / 2 + Math.sin(time * bedFreq) * bedAmp;
+        const bedY = rect.height - 50;
+
+        // Physics: critical toppling calculation
+        // Pinpoint base r_base = 6px (3mm), Flattened base r_base = 22px (9mm)
+        const rBase = isFlattened ? 26 : 7;
+        const hCenter = 110; // Center of mass height
+        // Inertia torque: m * accel * hCenter
+        // Stabilizing torque: m * g * rBase
+        // Normalized ratio
+        const tipThreshold = (rBase / hCenter) * 16000;
+
+        if (!isFlattened && accel > tipThreshold) {
+          if (!isToppled) {
+            wobbleAngle += 0.06;
+            if (wobbleAngle > 1.25) {
+              wobbleAngle = 1.25;
+              isToppled = true;
+            }
+          }
+          statusBadge.className = 'sim-status pill pill-red';
+          statusBadge.innerHTML = '⚠️ NGUY CƠ: MẪU BUNG BÀN VÀ ĐỔ VỠ!';
+        } else {
+          // Stable oscillation or slight rocking
+          isToppled = false;
+          let targetAngle = -Math.cos(time * bedFreq) * (accel / 18000) * (isFlattened ? 0.03 : 0.35);
+          wobbleAngle += (targetAngle - wobbleAngle) * 0.2;
+          statusBadge.className = 'sim-status pill pill-green';
+          statusBadge.innerHTML = '✅ BÁM BÀN 100% VỮNG CHÃI';
+        }
+
+        // Draw Moving Textured PEI Plate
+        const plateW = 220;
+        const plateH = 12;
+        ctx.fillStyle = '#E5E5EA';
+        ctx.fillRect(rect.width / 2 - 160, bedY + 10, 320, 4); // Fixed rail
+
+        ctx.fillStyle = '#2C2C2E'; // Textured PEI gold-black tone
+        ctx.beginPath();
+        ctx.roundRect(bedX - plateW / 2, bedY, plateW, plateH, 4);
+        ctx.fill();
+
+        // Plate Golden Texture pattern
+        ctx.fillStyle = '#D4AF37';
+        for (let x = bedX - plateW / 2 + 10; x < bedX + plateW / 2; x += 18) {
+          ctx.fillRect(x, bedY + 1, 8, 2);
+        }
+
+        ctx.fillStyle = '#8E8E93';
+        ctx.font = '10px Inter, sans-serif';
+        ctx.fillText('Bàn in Textured PEI (Trục Y trượt qua lại)', bedX - 95, bedY + 26);
+
+        // Draw Figurine Model on Bed
+        ctx.save();
+        ctx.translate(bedX, bedY);
+        ctx.rotate(wobbleAngle);
+
+        if (isFlattened) {
+          // Draw LayerZero Flattened Solid Anchor Pad
+          ctx.fillStyle = '#34C759';
+          ctx.fillRect(-rBase, -4, rBase * 2, 4);
+
+          // Figurine Ball Joint south pole sliced off
+          ctx.fillStyle = '#0071E3';
+          ctx.beginPath();
+          ctx.arc(0, -22, 22, 0.45 * Math.PI, 0.55 * Math.PI, true);
+          ctx.lineTo(-rBase, -4);
+          ctx.lineTo(rBase, -4);
+          ctx.closePath();
+          ctx.fill();
+
+          // Green Pad Contact width indicator
+          ctx.strokeStyle = '#34C759';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(-rBase, 6);
+          ctx.lineTo(rBase, 6);
+          ctx.stroke();
+          ctx.fillStyle = '#34C759';
+          ctx.font = 'bold 9.5px JetBrains Mono, monospace';
+          ctx.fillText('Đế phẳng: 9mm (+300%)', -54, 18);
+        } else {
+          // Sphere touching bed at a single tiny pinpoint
+          ctx.fillStyle = '#0071E3';
+          ctx.beginPath();
+          ctx.arc(0, -22, 22, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Red Tiny Contact dot indicator
+          ctx.fillStyle = '#FF3B30';
+          ctx.beginPath();
+          ctx.arc(0, 0, 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.font = 'bold 9.5px JetBrains Mono, monospace';
+          ctx.fillText('Tiếp xúc điểm: 3mm (CỰC KỲ YẾU)', -78, 18);
+        }
+
+        // Figurine Upper Body & Tall Head
+        ctx.fillStyle = '#0071E3';
+        ctx.beginPath();
+        ctx.roundRect(-14, -75, 28, 55, 6);
+        ctx.fill();
+
+        // Upper Head / Horns
+        ctx.beginPath();
+        ctx.moveTo(-22, -125);
+        ctx.lineTo(22, -125);
+        ctx.lineTo(16, -75);
+        ctx.lineTo(-16, -75);
+        ctx.closePath();
+        ctx.fill();
+
+        // Center of mass dot
+        ctx.fillStyle = '#FF9500';
+        ctx.beginPath();
+        ctx.arc(0, -hCenter, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.font = '10px Inter, sans-serif';
+        ctx.fillText('Trọng tâm (h = 75mm)', 8, -hCenter + 4);
+
+        ctx.restore();
+
+        // Bed Inertia Force Vector Arrow
+        const accelNorm = Math.sin(time * bedFreq);
+        if (Math.abs(accelNorm) > 0.2) {
+          const arrowDir = -Math.sign(accelNorm);
+          const arrowLen = Math.abs(accelNorm) * 60 * (accel / 4500);
+          ctx.strokeStyle = '#FF3B30';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(bedX, bedY - hCenter);
+          ctx.lineTo(bedX + arrowDir * arrowLen, bedY - hCenter);
+          ctx.stroke();
+
+          ctx.fillStyle = '#FF3B30';
+          ctx.beginPath();
+          ctx.arc(bedX + arrowDir * arrowLen, bedY - hCenter, 5, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.font = 'bold 10px Inter, sans-serif';
+          ctx.fillText('Lực quán tính F_inertia = m·a_Y', bedX - 70, bedY - hCenter - 12);
+        }
+
+        ctx.restore();
+        requestAnimationFrame(render);
+      }
+      requestAnimationFrame(render);
+    })();
+
+    // -------------------------------------------------------------
+    // ANIMATION 3: Scarf Joint Seam Motion Animator
+    // -------------------------------------------------------------
+    (function setupSeamAnimator() {
+      const c = document.getElementById('seamCanvas');
+      if (!c) return;
+
+      let isScarf = false;
+      let theta = 0;
+      const btnClassic = document.getElementById('btnClassicSeam');
+      const btnScarf = document.getElementById('btnScarfSeam');
+      const desc = document.getElementById('seamDesc');
+      const badge = document.getElementById('seamStatus');
+
+      btnClassic.addEventListener('click', () => {
+        isScarf = false;
+        btnClassic.classList.add('active');
+        btnScarf.classList.remove('active');
+        desc.innerHTML = 'Chế độ Classic: Đầu phun dừng giật cục tại điểm 0°/360°, nhựa tràn tạo thành 1 cục sẹo (blob) cộm trên bề mặt trụ tròn.';
+        badge.className = 'sim-status pill pill-red';
+        badge.innerHTML = '● Lộ Vết Sẹo Dọc (Z-Seam Scar)';
+      });
+
+      btnScarf.addEventListener('click', () => {
+        isScarf = true;
+        btnScarf.classList.add('active');
+        btnClassic.classList.remove('active');
+        desc.innerHTML = 'Chế độ Scarf Joint 155°: Dòng đùn giảm dần thành vát dốc và đè lướt nhẹ lên mép bắt đầu, đường seam phẳng lì 100%.';
+        badge.className = 'sim-status pill pill-green';
+        badge.innerHTML = '✅ Triệt Tiêu 100% Sẹo Seam';
+      });
+
+      function render() {
+        const rect = c.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        if (c.width !== rect.width * dpr || c.height !== rect.height * dpr) {
+          c.width = rect.width * dpr;
+          c.height = rect.height * dpr;
+        }
+        const ctx = c.getContext('2d');
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, rect.width, rect.height);
+
+        theta += 0.025;
+        if (theta > Math.PI * 2) theta -= Math.PI * 2;
+
+        const cx = rect.width / 2;
+        const cy = rect.height / 2;
+        const radius = Math.min(rect.width, rect.height) * 0.35;
+
+        // Draw Base Circle Cylinder Core
+        ctx.fillStyle = '#F5F5F7';
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius - 14, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#E5E5EA';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = '#86868B';
+        ctx.font = '11px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Lõi Trụ Tròn Nhẵn (Trục Z)', cx, cy + 4);
+
+        // Draw Perimeter Wall Path
+        ctx.strokeStyle = '#0071E3';
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Seam position at 0 radians (3 o'clock position)
+        const seamX = cx + radius;
+        const seamY = cy;
+
+        if (isScarf) {
+          // Draw smooth 155° tapered ramp in Cyan
+          ctx.strokeStyle = '#00D2B4';
+          ctx.lineWidth = 10;
+          ctx.beginPath();
+          ctx.arc(cx, cy, radius, -0.4, 0.4);
+          ctx.stroke();
+
+          ctx.fillStyle = '#00D2B4';
+          ctx.font = 'bold 10px JetBrains Mono, monospace';
+          ctx.textAlign = 'left';
+          ctx.fillText('Vát dốc Scarf 155° (Dòng đùn giảm mượt)', seamX + 16, seamY - 14);
+
+          ctx.beginPath();
+          ctx.arc(seamX, seamY, 4, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          // Draw protruding ugly blob at seam
+          ctx.fillStyle = '#FF3B30';
+          ctx.beginPath();
+          ctx.arc(seamX + 3, seamY, 8, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#FF3B30';
+          ctx.font = 'bold 10.5px JetBrains Mono, monospace';
+          ctx.textAlign = 'left';
+          ctx.fillText('Cục sẹo Z-Seam (Blob gồ ghề)', seamX + 16, seamY + 4);
+        }
+
+        // Moving Extruder Nozzle
+        const nozX = cx + Math.cos(theta) * radius;
+        const nozY = cy + Math.sin(theta) * radius;
+
+        // Nozzle brass body
+        ctx.fillStyle = '#D4AF37';
+        ctx.strokeStyle = '#9A7D0A';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(nozX, nozY, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Hotend nozzle tip center
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(nozX, nozY, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#D4AF37';
+        ctx.font = '10px Inter, sans-serif';
+        ctx.fillText('Nozzle 0.4mm', nozX + 10, nozY - 10);
+
+        ctx.restore();
+        requestAnimationFrame(render);
+      }
+      requestAnimationFrame(render);
+    })();
+
+    // -------------------------------------------------------------
+    // ANIMATION 4: Screw Head Layer 1 Brim Fusion Visualizer
+    // -------------------------------------------------------------
+    (function setupScrewVisualizer() {
+      const c = document.getElementById('screwCanvas');
+      if (!c) return;
+
+      let mode = 'author';
+      const btnAuthor = document.getElementById('btnScrewAuthor');
+      const btnLayerZero = document.getElementById('btnScrewLayerZero');
+      const desc = document.getElementById('screwDesc');
+      const badge = document.getElementById('screwStatus');
+
+      btnAuthor.addEventListener('click', () => {
+        mode = 'author';
+        btnAuthor.classList.add('active');
+        btnLayerZero.classList.remove('active');
+        desc.innerHTML = 'Tác giả (No Brim): Rãnh tua-vít xẻ đầu ốc làm 2 mảnh trăng khuyết riêng biệt tại Layer 1, diện tích bám cực nhỏ dễ bị đầu phun gạt bung.';
+        badge.className = 'sim-status pill pill-red';
+        badge.innerHTML = '⚠️ Dễ Bung Khỏi Bàn Khi In Nhanh';
+      });
+
+      btnLayerZero.addEventListener('click', () => {
+        mode = 'layerzero';
+        btnLayerZero.classList.add('active');
+        btnAuthor.classList.remove('active');
+        desc.innerHTML = 'LayerZero (Outer Brim 5mm): Vành brim đồng tâm bao quanh hàn liền 2 nửa thành 1 đế Ø20mm vững chắc, bóc ra nhẹ nhàng mà không chạm vào ren ốc!';
+        badge.className = 'sim-status pill pill-green';
+        badge.innerHTML = '✅ Khóa Chặt 100% Khối Chân';
+      });
+
+      function render() {
+        const rect = c.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        if (c.width !== rect.width * dpr || c.height !== rect.height * dpr) {
+          c.width = rect.width * dpr;
+          c.height = rect.height * dpr;
+        }
+        const ctx = c.getContext('2d');
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, rect.width, rect.height);
+
+        const cx = rect.width / 2;
+        const cy = rect.height / 2;
+        const headR = 48;
+        const slotW = 16;
+        const brimR = headR + 42;
+
+        if (mode === 'layerzero') {
+          // Draw Concentric Green Outer Brim Rings
+          for (let r = headR + 4; r <= brimR; r += 7) {
+            ctx.strokeStyle = 'rgba(52, 199, 89, 0.45)';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+
+          ctx.fillStyle = '#34C759';
+          ctx.font = 'bold 11px JetBrains Mono, monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('Outer Brim 5mm (Khóa liền 2 đảo thành đế tròn Ø20mm)', cx, cy + brimR + 24);
+        }
+
+        // Draw Left Half-Moon Screw Head Base
+        ctx.fillStyle = '#0071E3';
+        ctx.beginPath();
+        ctx.arc(cx, cy, headR, Math.PI / 2 + 0.18, 3 * Math.PI / 2 - 0.18);
+        ctx.closePath();
+        ctx.fill();
+
+        // Draw Right Half-Moon Screw Head Base
+        ctx.beginPath();
+        ctx.arc(cx, cy, headR, 3 * Math.PI / 2 + 0.18, Math.PI / 2 - 0.18);
+        ctx.closePath();
+        ctx.fill();
+
+        // Center Screwdriver Slot Void
+        ctx.fillStyle = '#FAFAFC';
+        ctx.fillRect(cx - slotW / 2, cy - headR - 6, slotW, (headR + 6) * 2);
+
+        // Outline borders
+        ctx.strokeStyle = '#005bb5';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, headR, Math.PI / 2 + 0.18, 3 * Math.PI / 2 - 0.18);
+        ctx.closePath();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, headR, 3 * Math.PI / 2 + 0.18, Math.PI / 2 - 0.18);
+        ctx.closePath();
+        ctx.stroke();
+
+        // Slot Label
+        ctx.fillStyle = '#86868B';
+        ctx.font = '10px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Rãnh tua-vít (Khe rỗng Z = 0 -> 2.6mm)', cx, cy - 2);
+
+        ctx.restore();
+        requestAnimationFrame(render);
+      }
+      requestAnimationFrame(render);
+    })();
+
+    // -------------------------------------------------------------
+    // Smooth Active Link Highlight on Scroll
+    // -------------------------------------------------------------
+    const sections = document.querySelectorAll('section');
+    const navLinks = document.querySelectorAll('.nav-menu a:not(.nav-github-btn)');
+
+    window.addEventListener('scroll', () => {
+      let current = '';
+      sections.forEach(section => {
+        const top = section.offsetTop;
+        if (pageYOffset >= top - 100) {
+          current = section.getAttribute('id');
+        }
+      });
+      navLinks.forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href') === `#${current}`) {
+          link.classList.add('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

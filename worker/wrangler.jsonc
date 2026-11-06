@@ -1,0 +1,19 @@
+{
+  "name": "pegforge-registration-worker",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-06",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pegforge_db",
+      "database_id": "1743a386-8743-498e-83f2-371c17816c29"
+    }
+  ],
+  "send_email": [
+    {
+      "name": "EMAIL"
+    }
+  ]
+}

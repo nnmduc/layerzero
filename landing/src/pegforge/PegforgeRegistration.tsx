@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PaperPlaneTilt, Info } from '@phosphor-icons/react';
+import { PaperPlaneTilt, Info, ShieldCheck, CheckCircle } from '@phosphor-icons/react';
 
 type RegistrationTier = 'waiting' | 'testing' | 'contributor';
 
@@ -175,7 +175,47 @@ export const PegforgeRegistration: React.FC = () => {
               </button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <>
+              {/* Disclaimer & Privacy Commitment */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#F0F0F3]/80 dark:bg-[#202024]/80 border border-black/5 dark:border-white/10 mb-6">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                    <ShieldCheck size={18} weight="fill" />
+                  </div>
+                  <div className="space-y-1.5 text-xs text-[#6E6E73] dark:text-[#98989D] leading-relaxed">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-sm text-[#1D1D1F] dark:text-[#F5F5F7]">
+                        Cam kết quyền riêng tư & minh bạch
+                      </span>
+                      <span className="text-[10.5px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold">
+                        100% Phi thương mại
+                      </span>
+                    </div>
+                    <p>
+                      Thông tin đăng ký được cam kết <strong>chỉ dùng duy nhất để thông báo cập nhật về sản phẩm</strong> và gửi link tải bản thử nghiệm.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-black/5 dark:border-white/5 text-[11.5px] text-[#1D1D1F] dark:text-zinc-200">
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle size={14} weight="fill" className="text-emerald-500 shrink-0" />
+                        <span>Không quảng cáo / spam</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle size={14} weight="fill" className="text-emerald-500 shrink-0" />
+                        <span>Không thu thập thông tin cá nhân</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle size={14} weight="fill" className="text-emerald-500 shrink-0" />
+                        <span>Chấp nhận email ảo</span>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-[#6E6E73] dark:text-zinc-400 pt-1">
+                      Bạn hoàn toàn có thể thoải mái sử dụng email ảo hoặc email ẩn danh (relay/burner email), miễn là hộp thư vẫn nhận được thông báo là được.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-5">
               {/* Email (Always Required) */}
               <div>
                 <label
@@ -305,7 +345,8 @@ export const PegforgeRegistration: React.FC = () => {
                 <PaperPlaneTilt size={16} weight="bold" />
               </button>
             </form>
-          )}
+          </>
+        )}
         </div>
       </div>
     </section>

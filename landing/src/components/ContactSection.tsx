@@ -4,11 +4,13 @@ import {
   Copy,
   EnvelopeSimple,
 } from '@phosphor-icons/react';
+import { AuthorModal } from './AuthorModal';
 
 const CONTACT_EMAIL = 'hello@layerzero.io.vn';
 
 export const ContactSection: React.FC = () => {
   const [copied, setCopied] = useState(false);
+  const [isAuthorOpen, setIsAuthorOpen] = useState(false);
 
   const handleCopyEmail = async () => {
     try {
@@ -80,8 +82,15 @@ export const ContactSection: React.FC = () => {
             </span>
             <span>· Hỗ trợ Claude Code & agy CLI · Sắp hỗ trợ Codex.</span>
           </div>
-          <div>
-            Hỗ trợ macOS, Windows & Linux ·{' '}
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setIsAuthorOpen(true)}
+              className="text-[#6E6E73] dark:text-zinc-400 hover:text-[#1D1D1F] dark:hover:text-zinc-200 transition-colors underline-offset-4 hover:underline"
+            >
+              Về tác giả
+            </button>
+            <span>·</span>
             <a
               href="https://github.com/nnmduc/layerzero/releases/latest"
               target="_blank"
@@ -92,6 +101,8 @@ export const ContactSection: React.FC = () => {
             </a>
           </div>
         </footer>
+
+        <AuthorModal isOpen={isAuthorOpen} onClose={() => setIsAuthorOpen(false)} />
       </div>
     </section>
   );

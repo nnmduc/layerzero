@@ -18,7 +18,8 @@ export interface ChangelogSection {
 export interface ChangelogVersion {
   version: string;
   date: string;
-  badge?: 'latest' | 'launch';
+  /** `beta`: tester-only build, listed without download links. */
+  badge?: 'latest' | 'launch' | 'beta';
   summary: string;
   sections: ChangelogSection[];
   /** Empty when the version shipped no installers of its own. */
@@ -40,6 +41,34 @@ const installersFor = (v: string): ChangelogDownload[] => [
 ];
 
 export const CHANGELOG: ChangelogVersion[] = [
+  {
+    version: '2.3.0-beta.1',
+    date: '07/11/2026',
+    badge: 'beta',
+    summary: 'Hỗ trợ Snapmaker U1 (4 đầu in, đầu phun 0.2–0.8 mm): chuyển file MakerWorld sang U1 và mở thẳng trong Snapmaker Orca.',
+    sections: [
+      {
+        title: 'Tính năng mới',
+        items: [
+          'Snapmaker U1 với đầu phun 0.2, 0.4, 0.6 và 0.8 mm. Chọn máy theo hãng: Bambu Lab hoặc Snapmaker.',
+          'File MakerWorld được dựng lại từ profile hệ thống U1 của Snapmaker Orca 2.4.1: giữ màu, layer, tường, infill, support, brim và seam; mở file không còn hộp thoại "Customized Preset".',
+          'Nút mở slicer đổi theo máy: Bambu Studio cho máy Bambu, Snapmaker Orca cho U1. Vẫn xuất được file cho máy khác.',
+          'Bảng vật liệu hiển thị đầu in T1–T4 và cảnh báo khi file có hơn 4 màu.',
+          'Thẻ cảnh báo mới: hiệu chỉnh offset giữa các đầu in, Top Cover cho ABS/ASA, chi tiết vượt kích thước in của máy.',
+        ],
+      },
+      {
+        title: 'Sửa lỗi',
+        items: [
+          'P1S và X1C (CoreXY) không còn nhận lời khuyên của máy bàn trượt A1 (hạ gia tốc trục Y, xoay mẫu cao).',
+          'Support chỉ bọc chi tiết đế yếu có đủ khoảng trống, hết lỗi "xung đột đường in" khi các chi tiết đặt sát nhau.',
+          'Thông số LayerZero tối ưu không còn bị slicer khôi phục về mặc định khi mở file.',
+          'Độ dày lớp mịn tính theo đường kính đầu phun thay vì cố định 0.16 mm.',
+        ],
+      },
+    ],
+    downloads: [],
+  },
   {
     version: '2.2.0',
     date: '06/11/2026',

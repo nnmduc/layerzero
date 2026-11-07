@@ -4,6 +4,7 @@ import { HeroSection } from './components/HeroSection';
 import { StorySection } from './components/StorySection';
 import { FeaturesBento } from './components/FeaturesBento';
 import { FilamentSupportSection } from './components/FilamentSupportSection';
+import { SnapmakerU1Section } from './components/SnapmakerU1Section';
 import { ProblemsWorkbench } from './components/ProblemsWorkbench';
 import { LearningDiffSection } from './components/LearningDiffSection';
 import { DownloadSection } from './components/DownloadSection';
@@ -82,6 +83,7 @@ export const App: React.FC = () => {
         <StorySection />
         <FeaturesBento />
         <FilamentSupportSection />
+        <SnapmakerU1Section />
         <ProblemsWorkbench />
         <LearningDiffSection />
         <DownloadSection />

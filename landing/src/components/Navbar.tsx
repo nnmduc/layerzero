@@ -83,6 +83,9 @@ export const Navbar: React.FC<NavbarProps> = ({ darkMode, onToggleTheme, isPegfo
             <a href="#vat-lieu" className="hover:text-[#0071E3] dark:hover:text-[#2997FF] transition-colors">
               Vật liệu
             </a>
+            <a href="#snapmaker-u1" className="hover:text-[#0071E3] dark:hover:text-[#2997FF] transition-colors">
+              Snapmaker U1
+            </a>
             <a href="#xu-ly-loi-in" className="hover:text-[#0071E3] dark:hover:text-[#2997FF] transition-colors">
               Xử lý lỗi in 3D
             </a>
@@ -205,6 +208,9 @@ export const Navbar: React.FC<NavbarProps> = ({ darkMode, onToggleTheme, isPegfo
                 </a>
                 <a href="#vat-lieu" onClick={closeMobileMenu} className="py-2 px-3 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
                   Vật liệu & Định cấu hình
+                </a>
+                <a href="#snapmaker-u1" onClick={closeMobileMenu} className="py-2 px-3 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                  Snapmaker U1 (beta)
                 </a>
                 <a href="#xu-ly-loi-in" onClick={closeMobileMenu} className="py-2 px-3 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
                   8 Lỗi in 3D thường gặp

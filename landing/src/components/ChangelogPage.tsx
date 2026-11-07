@@ -28,6 +28,11 @@ const VersionCard: React.FC<{ entry: ChangelogVersion }> = ({ entry }) => (
         {entry.badge === 'latest' && (
           <span className="text-[11px] font-semibold text-white bg-[#0071E3] px-2 py-0.5 rounded-full">Mới nhất</span>
         )}
+        {entry.badge === 'beta' && (
+          <span className="text-[11px] font-semibold text-[#B25000] dark:text-[#FFB340] bg-[#FF9F0A]/[0.12] border border-[#FF9F0A]/30 px-2 py-0.5 rounded-full">
+            Beta
+          </span>
+        )}
         {entry.badge === 'launch' && (
           <span className="text-[11px] font-semibold text-[#515154] dark:text-zinc-300 bg-[#F5F5F7] dark:bg-white/[0.08] border border-[#1D1D1F]/10 dark:border-white/10 px-2 py-0.5 rounded-full">
             Ra mắt
@@ -65,6 +70,14 @@ const VersionCard: React.FC<{ entry: ChangelogVersion }> = ({ entry }) => (
             </a>
           ))}
         </div>
+      ) : entry.badge === 'beta' ? (
+        <p className="pt-4 border-t border-[#1D1D1F]/[0.08] dark:border-white/[0.08] text-[13px] leading-normal text-[#6E6E73] dark:text-zinc-400">
+          Bản thử nghiệm dành cho nhóm tester, chưa phát hành công khai. Bản ổn định hiện tại là{' '}
+          <a href="#v2.2.0" className="text-[#0066CC] dark:text-[#2997FF] hover:underline">
+            v2.2.0
+          </a>
+          .
+        </p>
       ) : (
         <p className="pt-4 border-t border-[#1D1D1F]/[0.08] dark:border-white/[0.08] text-[13px] leading-normal text-[#6E6E73] dark:text-zinc-400">
           Bản cập nhật này không có bộ cài riêng. Các thay đổi đã có trong{' '}

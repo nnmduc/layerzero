@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FilamentSlotPanel } from './components/FilamentSlotPanel';
+import { FALLBACK_PRINTERS, PrinterSelect, printerOptionLabel } from './components/PrinterSelect';
 import { Viewport3D } from './components/Viewport3D';
 import {
   AgentActivityLog,
@@ -22,6 +23,7 @@ const API_BASE =
 const IS_DESKTOP =
   typeof window !== 'undefined' &&
   ('__TAURI_INTERNALS__' in window || window.location.port !== '5173');
+const PRINTER_STORAGE_KEY = 'layerzero.printerPreset';
 
 export const App: React.FC = () => {
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -55,7 +57,15 @@ export const App: React.FC = () => {
   const [flattenMm, setFlattenMm] = useState<number>(0.8);
 
   // Printer & Filament Presets
-  const [printerPreset, setPrinterPreset] = useState<string>('Bambu Lab A1 0.4 nozzle');
+  const [printerPreset, setPrinterPreset] = useState<string>(() => {
+    try {
+      return localStorage.getItem(PRINTER_STORAGE_KEY) || 'Bambu Lab A1 0.4 nozzle';
+    } catch {
+      return 'Bambu Lab A1 0.4 nozzle';
+    }
+  });
+  // Export target printer; '' follows the selected printer (lets a U1 owner still export a Bambu file).
+  const [exportPrinter, setExportPrinter] = useState<string>('');
   // Filament is a UI key ('PLA Lite' | 'PLA Basic' | 'PETG HF'); the backend resolves the exact
   // Bambu preset for the selected printer (e.g. `Bambu PLA Basic @BBL P1S 0.4 nozzle`).
   const [filamentPreset, setFilamentPreset] = useState<string>('PLA Lite');
@@ -188,6 +198,31 @@ export const App: React.FC = () => {
   };
 
   const filamentOptionIds = presetOptions?.filaments.map((f) => f.id) ?? ['PLA Lite', 'PLA Basic', 'PETG HF'];
+
+  // The "Open in ..." button follows the selected printer's own slicer (Bambu Studio / Snapmaker Orca).
+  const printerOptions = presetOptions?.printers ?? FALLBACK_PRINTERS;
+  const currentPrinter = printerOptions.find((p) => p.id === printerPreset);
+  const slicerId = currentPrinter?.slicer ?? 'bambu_studio';
+  const slicerInfo = presetOptions?.slicers?.[slicerId];
+  const slicerLabel = slicerInfo?.label ?? (slicerId === 'snapmaker_orca' ? 'Snapmaker Orca' : 'Bambu Studio');
+  const slicerMissing = slicerInfo?.installed === false;
+  const exportTarget = exportPrinter || printerPreset;
+  const exportTargetOption = printerOptions.find((p) => p.id === exportTarget);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PRINTER_STORAGE_KEY, printerPreset);
+    } catch {
+      /* storage unavailable (private window): the choice just isn't remembered */
+    }
+  }, [printerPreset]);
+
+  // Presets loaded after a stale remembered printer id: fall back to the backend default.
+  useEffect(() => {
+    if (presetOptions && !presetOptions.printers.some((p) => p.id === printerPreset)) {
+      setPrinterPreset(presetOptions.default_printer);
+    }
+  }, [presetOptions, printerPreset]);
 
   const agentBrandName =
     selectedAgent === 'claude'
@@ -411,18 +446,20 @@ export const App: React.FC = () => {
 
   const triggerAgyAnalysis = triggerAiAnalysis;
 
-  // Stage 3: Export optimized .3mf / .stl or Open directly in Bambu Studio
+  // Stage 3: Export optimized .3mf / .stl, or open it directly in the selected printer's slicer
   const handleApplyAndExport = async (
-    openInBambu: boolean,
+    openInSlicer: boolean,
     exportFormat: '3mf' | 'stl' = '3mf'
   ) => {
+    // Opening always targets the selected printer; plain export may target another printer.
+    const targetPrinter = openInSlicer ? printerPreset : exportTarget;
     if (!sessionId || !audit) {
       showToastMsg('Chưa có báo cáo tối ưu', `Hãy bấm "Phân tích & Tối ưu bằng ${agentBrandName}" trước khi xuất file.`);
       return;
     }
     setIslandStatus(
-      openInBambu
-        ? 'Đang đóng gói .3mf & mở Bambu Studio...'
+      openInSlicer
+        ? `Đang đóng gói .3mf & mở ${slicerLabel}...`
         : `Đang đóng gói file .${exportFormat} tối ưu...`
     );
     try {
@@ -433,26 +470,32 @@ export const App: React.FC = () => {
           session_id: sessionId,
           diagnostic_cards: audit.diagnostic_cards,
           settings_diff: audit.settings_diff,
-          printer_preset: printerPreset,
+          printer_preset: targetPrinter,
+          audit_printer_preset: printerPreset,
           filament_preset: filamentPreset,
           slot_filaments: slotFilaments,
           export_format: exportFormat,
-          open_in_bambu: openInBambu,
-          reveal_in_finder: !openInBambu && IS_DESKTOP,
+          open_in_slicer: openInSlicer,
+          reveal_in_finder: (!openInSlicer || slicerMissing) && IS_DESKTOP,
         }),
       });
       if (!res.ok) throw new Error(`Lỗi khi xuất file .${exportFormat}`);
       const data = await res.json();
       setIslandStatus(`Đã xuất: ${data.output_filename}`);
+      const targetLabel = exportTargetOption ? `${exportTargetOption.vendor_label} ${printerOptionLabel(exportTargetOption)}` : '';
       showToastMsg(
-        openInBambu
-          ? 'Đã mở trong Bambu Studio'
+        openInSlicer
+          ? slicerMissing
+            ? `Chưa cài ${slicerLabel} — tải tại ${slicerInfo?.download_url ?? ''}`
+            : `Đã mở trong ${slicerLabel}`
+          : exportPrinter
+          ? `Đã xuất file cho ${targetLabel}`
           : IS_DESKTOP
           ? 'Đã lưu vào ~/Downloads & mở thư mục chứa file'
           : `Đã xuất file .${exportFormat} tối ưu`,
         data.output_filename
       );
-      if (!openInBambu && !IS_DESKTOP && data.download_url) {
+      if (!openInSlicer && !IS_DESKTOP && data.download_url) {
         window.location.href = `${API_BASE}${data.download_url}`;
       }
     } catch (err: any) {
@@ -627,22 +670,12 @@ export const App: React.FC = () => {
             className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] border border-black/[0.06] dark:border-white/[0.08] bg-white/50 dark:bg-white/[0.02] text-[11.5px] shrink-0 whitespace-nowrap"
           >
             <i className="ph-bold ph-printer text-[#0071E3]"></i>
-            <select
+            <PrinterSelect
+              printers={printerOptions}
               value={printerPreset}
-              onChange={(e) => setPrinterPreset(e.target.value)}
+              onChange={setPrinterPreset}
               className="bg-transparent font-medium text-[#1D1D1F] dark:text-white focus:outline-none cursor-pointer"
-            >
-              {(presetOptions?.printers ?? [
-                { id: 'Bambu Lab A1 0.4 nozzle', label: 'A1' },
-                { id: 'Bambu Lab A1 mini 0.4 nozzle', label: 'A1 mini' },
-                { id: 'Bambu Lab P1S 0.4 nozzle', label: 'P1S' },
-                { id: 'Bambu Lab X1 Carbon 0.4 nozzle', label: 'X1C' },
-              ]).map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label} (0.4mm)
-                </option>
-              ))}
-            </select>
+            />
             <span className="opacity-30">|</span>
             <span className="w-2 h-2 rounded-full bg-white border border-black/25 inline-block shrink-0"></span>
             <select
@@ -760,12 +793,28 @@ export const App: React.FC = () => {
               <option value="3mf">.3MF</option>
               <option value="stl">.STL</option>
             </select>
+            {exportFormat === '3mf' && (
+              <PrinterSelect
+                printers={printerOptions}
+                value={exportPrinter}
+                onChange={setExportPrinter}
+                leadingOption="Cho máy đang chọn"
+                title="Xuất file .3MF cho máy in khác (vd. đang chọn U1 nhưng cần file cho Bambu A1)"
+                className={`hidden md:block max-w-[132px] bg-transparent text-[10px] font-medium px-1.5 h-7 border-l border-black/[0.08] dark:border-white/[0.1] focus:outline-none cursor-pointer ${
+                  exportPrinter ? 'text-[#0071E3]' : 'text-[#6E6E73] dark:text-[#A1A1A6]'
+                }`}
+              />
+            )}
           </div>
 
           <button
             onClick={() => handleApplyAndExport(true, '3mf')}
             disabled={!audit}
-            data-tip="Áp dụng tối ưu & Mở trực tiếp trong Bambu Studio"
+            data-tip={
+              slicerMissing
+                ? `Chưa phát hiện ${slicerLabel} trên máy — vẫn xuất file & mở thư mục chứa file`
+                : `Áp dụng tối ưu & Mở trực tiếp trong ${slicerLabel}`
+            }
             data-tip-pos="bottom-right"
             className={`px-2.5 sm:px-3 py-1.5 rounded-full text-[11.5px] sm:text-[12px] font-medium text-white shadow-sm spring-transition flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
               audit
@@ -774,8 +823,8 @@ export const App: React.FC = () => {
             }`}
           >
             <i className="ph-bold ph-arrow-square-out text-sm"></i>
-            <span className="hidden sm:inline">Bambu Studio</span>
-            <span className="sm:hidden">Bambu</span>
+            <span className="hidden sm:inline">{slicerLabel}</span>
+            <span className="sm:hidden">{slicerId === 'snapmaker_orca' ? 'Orca' : 'Bambu'}</span>
           </button>
         </div>
       </header>
@@ -1761,7 +1810,7 @@ export const App: React.FC = () => {
                                 {isSameOrigin ? (
                                   <div
                                     className="flex items-center gap-1 text-[#8E8E93] dark:text-[#636366]"
-                                    title="Giá trị gốc của tác giả (trùng mặc định Bambu Studio)"
+                                    title={`Giá trị gốc của tác giả (trùng mặc định ${currentPrinter?.vendor_label ?? "Bambu Lab"})`}
                                   >
                                     <span className="text-[9.5px] font-sans text-[#6E6E73] dark:text-[#8E8E93]">
                                       Gốc:
@@ -1786,7 +1835,7 @@ export const App: React.FC = () => {
                                     <span className="text-black/20 dark:text-white/20">|</span>
                                     <div
                                       className="flex items-center gap-1 text-[#8E8E93]"
-                                      title="Giá trị mặc định Bambu Studio"
+                                      title={`Giá trị mặc định ${currentPrinter?.vendor_label ?? "Bambu Lab"} ${currentPrinter?.label ?? ""}`}
                                     >
                                       <span className="text-[9px] font-sans text-[#6E6E73]">
                                         Mặc định:
@@ -1858,7 +1907,7 @@ export const App: React.FC = () => {
                 <code className="font-mono text-[#0071E3]">.stl</code> vào đây hoặc bấm để chọn
               </span>
               <span className="text-[11.5px] text-[#6E6E73] mt-1">
-                Hỗ trợ Bambu Studio / PrusaSlicer (.3mf) & Binary / ASCII (.stl)
+                Hỗ trợ Bambu Studio / Snapmaker Orca / PrusaSlicer (.3mf) & Binary / ASCII (.stl)
               </span>
               <input
                 type="file"

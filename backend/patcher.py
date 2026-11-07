@@ -10,6 +10,7 @@ LayerZero Universal Non-Destructive 3MF Patcher & Deterministic Rule Synthesis
 
 import json
 import math
+import re
 import struct
 import xml.etree.ElementTree as ET
 import zipfile
@@ -25,7 +26,6 @@ from profiler import (
     STL_BINARY_DTYPE,
     _parse_stl_file,
     fmt_val,
-    get_system_baseline,
     profile_3mf,
 )
 from filament_profiles import (
@@ -37,9 +37,15 @@ from filament_profiles import (
     policy_for,
     resolve_filament_preset,
     resolve_process_preset,
+    system_baseline,
 )
+from build_volume_cards import build_volume_cards
+from cross_vendor_config import build_cross_vendor_config, refresh_different_settings_to_system
 from material_advice_cards import build_material_advice_cards
+from printer_catalog import PRINTERS, is_bedslinger, native_app_version, needs_cross_vendor_retarget
 from slicer_config_merge import build_patched_config, set_filament_key
+from support_cradle_targets import SUPPORT_CLEARANCE_MM, support_cradle_object_ids
+from toolchanger_advice_cards import build_toolchanger_cards
 
 
 def guard_material_value(key: str, val: str, policy: dict[str, Any], vendor: dict[str, Any]) -> str | None:
@@ -82,7 +88,7 @@ def build_baseline_audit(
     orig_cfg = telemetry.get("project_settings", {})
     printer_preset = normalize_printer(printer_preset)
     resolved_filament = resolve_filament_preset(printer_preset, filament_preset)
-    sys_def = get_system_baseline(printer_preset, resolved_filament, resolve_process_preset(printer_preset))
+    sys_def = system_baseline(printer_preset, resolved_filament, resolve_process_preset(printer_preset))
     policy = policy_for(filament_preset)
     mat_label = policy["label"]
     objects = telemetry.get("objects", [])
@@ -94,11 +100,18 @@ def build_baseline_audit(
     pinpoint_objs = [o for o in objects if "PINPOINT_BALL_BASE" in o["morphology_flags"]]
     missing_sup_objs = [o for o in objects if "MISSING_BASE_SUPPORTS" in o["morphology_flags"] or "ACCIDENTAL_BASE_BLOCKERS" in o["morphology_flags"]]
     screw_objs = [o for o in objects if "SLOTTED_OR_SMALL_SCREW" in o["morphology_flags"]]
-    tall_objs = [o for o in objects if "Y_AXIS_INERTIA_TALL" in o["morphology_flags"]]
+    # Y-axis inertia only matters when the bed itself moves (A1 / A1 mini), not on CoreXY machines.
+    bedslinger = is_bedslinger(printer_preset)
+    tall_objs = [o for o in objects if "Y_AXIS_INERTIA_TALL" in o["morphology_flags"]] if bedslinger else []
     dome_objs = [o for o in objects if "DOMED_CURVATURE_TOP" in o["morphology_flags"]]
     flat_top_objs = [o for o in objects if "FLAT_HORIZONTAL_TOP" in o["morphology_flags"]]
     cyl_objs = [o for o in objects if "SMOOTH_CYLINDER_SEAM" in o["morphology_flags"]]
     bridge_objs = [o for o in objects if "UNSUPPORTED_HORIZONTAL_BRIDGE" in o["morphology_flags"]]
+
+    # Fine layer = 40% of the nozzle: 0.16mm on 0.4, 0.08mm on 0.2, 0.32mm on 0.8 (always inside the preset range).
+    nozzle = PRINTERS[printer_preset]["nozzle"]
+    printer_label = f"{PRINTERS[printer_preset]['vendor_label']} {PRINTERS[printer_preset]['label']}"
+    fine_layer = f"{float(nozzle) * 0.4:.2f}"
 
     # --- SAFETY CARDS ---
     if pinpoint_objs:
@@ -122,9 +135,12 @@ def build_baseline_audit(
             "approved": True,
         })
 
-    if missing_sup_objs or bridge_objs:
-        target_o = (missing_sup_objs or bridge_objs)[0]
-        blk_cnt = sum(o["metrics"]["base_blockers_z8"] for o in objects)
+    # Cradles only go on weak-base parts with room around them (see support_cradle_targets).
+    cradle_ids = support_cradle_object_ids(telemetry)
+    crowded = list({o["id"]: o for o in missing_sup_objs + pinpoint_objs if o["id"] not in cradle_ids}.values())
+    if cradle_ids:
+        target_o = next(o for o in objects if o["id"] in cradle_ids)
+        blk_cnt = sum(o["metrics"]["base_blockers_z8"] for o in objects if o["id"] in cradle_ids)
         br_area = max((o["metrics"]["bridge_area_mm2"] for o in objects), default=0)
         diagnostic_cards.append({
             "id": "card_reinforce_supports",
@@ -136,8 +152,13 @@ def build_baseline_audit(
             "desc": (
                 f"Vùng gầm Z <= 8mm thiếu Support Enforcer (và dính {blk_cnt} tam giác Support Blocker ở đế). "
                 f"Diện tích cầu nối ngang (Bridge) lên tới {br_area} mm² cần giảm tốc và bọc đài đỡ 360°."
+                + (
+                    f" Bỏ qua {len(crowded)} chi tiết đặt sát chi tiết khác (< {SUPPORT_CLEARANCE_MM:g}mm): "
+                    "Support cây mọc sang chi tiết bên cạnh sẽ khiến slicer báo xung đột đường in."
+                    if crowded else ""
+                )
             ),
-            "pill_text": "Tự động bọc Support Enforcer 360° (Z=0.8-8mm) & Gỡ Blocker",
+            "pill_text": f"Bọc Support Enforcer 360° (Z=0.8-8mm) cho {len(cradle_ids)} chi tiết & Gỡ Blocker",
             "action_type": "REINFORCE_SUPPORTS",
             "param_value": 8.0,
             "approved": True,
@@ -196,7 +217,7 @@ def build_baseline_audit(
                 f"Phát hiện {dome_mm2} mm² bề mặt vòm cong thoai thoải ở đỉnh '{first_d['name']}' (0.70 < normal_z < 0.98). "
                 f"In layer cố định sẽ lộ rõ các vòng bậc thang (stair-stepping)."
             ),
-            "pill_text": "Mịn đỉnh vòm: Layer 0.16mm + Concentric Top Surface",
+            "pill_text": f"Mịn đỉnh vòm: Layer {fine_layer}mm + Concentric Top Surface",
             "action_type": "ADAPTIVE_LAYER_DOME",
             "param_value": 0.12,
             "approved": True,
@@ -287,8 +308,8 @@ def build_baseline_audit(
             "meaning": "Độ cao mỗi lớp in tiêu chuẩn",
             "default_val": fmt_val(sys_def.get("layer_height", "0.2")),
             "author_val": fmt_val(orig_cfg.get("layer_height", "0.2")),
-            "proposed_val": "0.16",
-            "reason": "Mức 0.16mm Optimal trên Bambu A1 giảm rõ rệt vết bậc thang trên mặt cầu và tăng diện tích chồng lớp overhang.",
+            "proposed_val": fine_layer,
+            "reason": f"Mức {fine_layer}mm (40% đường kính đầu phun {nozzle}mm) trên {printer_label} giảm rõ rệt vết bậc thang trên mặt cầu và tăng diện tích chồng lớp overhang.",
             "approved": True,
         },
         {
@@ -427,7 +448,7 @@ def build_baseline_audit(
         },
     ])
 
-    bed_item = _bed_temp_setting(orig_cfg, sys_def, mat_label)
+    bed_item = _bed_temp_setting(orig_cfg, sys_def, mat_label, printer_preset)
     if bed_item:
         settings_diff.append(bed_item)
 
@@ -489,20 +510,21 @@ def build_baseline_audit(
             ),
             "approved": True,
         },
-        {
+    ])
+    if bedslinger:
+        settings_diff.append({
             "key": "default_acceleration",
             "label": "Default Acceleration (Gia tốc bàn trượt Y)",
-            "scope_tag": "Global · A1 Bed-Slinger",
+            "scope_tag": f"Global · {PRINTERS[printer_preset]['label']} Bed-Slinger",
             "object_id": "global",
             "category": "kinematics",
             "meaning": "Gia tốc di chuyển mặc định (mm/s²)",
             "default_val": fmt_val(sys_def.get("default_acceleration", "6000")),
             "author_val": fmt_val(orig_cfg.get("default_acceleration", "6000")),
             "proposed_val": "4000",
-            "reason": "Giảm quán tính giật qua lại của bàn in trục Y trên Bambu Lab A1 khi mẫu in lên cao.",
+            "reason": f"Giảm quán tính giật qua lại của bàn in trục Y trên Bambu Lab {PRINTERS[printer_preset]['label']} khi mẫu in lên cao.",
             "approved": True,
-        },
-    ])
+        })
 
     # --- SUPPORTS & PER-OBJECT OVERRIDES ---
     settings_diff.extend([
@@ -577,6 +599,8 @@ def build_baseline_audit(
     diagnostic_cards.extend(
         build_material_advice_cards(orig_cfg, printer_preset, filament_preset, sys_def, has_screws=bool(screw_objs))
     )
+    diagnostic_cards.extend(build_toolchanger_cards(orig_cfg, printer_preset))
+    diagnostic_cards.extend(build_volume_cards(objects, printer_preset, sys_def))
 
     # Compute initial scores
     safety_penalties = len(pinpoint_objs) * 14 + len(missing_sup_objs) * 12 + len(screw_objs) * 10 + len(tall_objs) * 8
@@ -607,14 +631,14 @@ def build_baseline_audit(
     }
 
 
-def _bed_temp_setting(orig_cfg: dict[str, Any], sys_def: dict[str, Any], mat_label: str) -> dict[str, Any] | None:
+def _bed_temp_setting(orig_cfg: dict[str, Any], sys_def: dict[str, Any], mat_label: str, printer: str) -> dict[str, Any] | None:
     """First-layer bed temperature item for the plate the file actually targets (`curr_bed_type`).
     When the vendor marks that plate unsupported (value 0), the item targets Textured PEI instead,
     matching the SWITCH_BED_PLATE card."""
-    bed = bed_type_of(orig_cfg)
+    bed = bed_type_of(orig_cfg, printer)
     key = f"{BED_TYPE_TEMP_KEY[bed]}_initial_layer"
     if key not in sys_def:
-        return None  # Bambu Studio profiles not installed: no vendor value to propose
+        return None  # vendor profiles not installed: no vendor value to propose
     vendor = fmt_val(sys_def[key])
     if vendor in ("0", "", "Auto"):
         bed = DEFAULT_BED_TYPE
@@ -631,9 +655,57 @@ def _bed_temp_setting(orig_cfg: dict[str, Any], sys_def: dict[str, Any], mat_lab
         "default_val": vendor,
         "author_val": fmt_val(orig_cfg.get(key, vendor)),
         "proposed_val": vendor,
-        "reason": f"Bambu khuyến nghị {vendor}°C cho {mat_label} trên {label} với máy này, giúp Layer 1 bám chắc và không cong vênh mép.",
+        "reason": f"{PRINTERS[normalize_printer(printer)]['vendor_label']} khuyến nghị {vendor}°C cho {mat_label} trên {label} với máy này, giúp Layer 1 bám chắc và không cong vênh mép.",
         "approved": True,
     }
+
+
+# Bambu Studio and Snapmaker Orca only treat a 3MF as a native project (keeping instances and
+# transforms) when `Application` starts with `BambuStudio-` (or `Snapmaker_Orca-`).
+APPLICATION_TAG = "BambuStudio-02.00.00.00"
+# Custom presets the author's slicer embeds next to project_settings (e.g. filament_settings_1.config).
+RE_EMBEDDED_PRESET = re.compile(r"Metadata/(filament|machine|print|process)_settings_\d+\.config")
+RE_APPLICATION = re.compile(rb'(<metadata name="Application">)[^<]*(</metadata>)')
+RE_PRINTER_MODEL_ID = re.compile(rb'(key="printer_model_id"\s+value=")[^"]*(")')
+
+
+def _fit_layer_heights(cfg: dict[str, Any]) -> None:
+    """Clamps layer heights into the nozzle's allowed range (author files and AI proposals assume 0.4mm)."""
+    def num(v: Any, default: float) -> float:
+        try:
+            return float(str(v[0] if isinstance(v, list) and v else v))
+        except (TypeError, ValueError):
+            return default
+
+    lo = num(cfg.get("min_layer_height"), 0.0)
+    hi = num(cfg.get("max_layer_height"), 0.0)
+    if hi <= 0:
+        return
+    for key in ("layer_height", "initial_layer_print_height"):
+        if key in cfg:
+            h = num(cfg[key], hi)
+            if not lo <= h <= hi:
+                cfg[key] = f"{min(max(h, lo), hi):g}"
+
+
+def _target_application_tag(printer: str, model_xml: bytes) -> str:
+    """`Application` a retargeted project should carry so the target slicer loads it natively."""
+    version = native_app_version(printer)
+    if version:
+        return f"Snapmaker_Orca-{version}"
+    match = RE_APPLICATION.search(model_xml)
+    current = match.group(0).decode(errors="ignore") if match else ""
+    return current[current.find(">") + 1:current.rfind("<")] if "BambuStudio-" in current else APPLICATION_TAG
+
+
+def _set_application_tag(data: bytes, tag: str) -> bytes:
+    """Rewrites the 3MF `Application` metadata in place (text edit keeps the XML byte-identical otherwise)."""
+    return RE_APPLICATION.sub(lambda m: m.group(1) + tag.encode() + m.group(2), data, count=1)
+
+
+def _retarget_slice_info(data: bytes, model_id: str) -> bytes:
+    """Points cached plate slice info at the new printer so the slicer does not flag a mismatch."""
+    return RE_PRINTER_MODEL_ID.sub(lambda m: m.group(1) + model_id.encode() + m.group(2), data)
 
 
 def _patch_mesh_element(
@@ -707,9 +779,11 @@ def apply_3mf_optimizations(
     orig_cfg = dict(telemetry.get("project_settings", {}))
     printer_preset = normalize_printer(printer_preset)
     policy = policy_for(filament_preset)
-    cfg, slot_plan, filament_keys = build_patched_config(orig_cfg, printer_preset, filament_preset, slot_overrides)
+    cross_vendor = needs_cross_vendor_retarget(orig_cfg, printer_preset)
+    build_config = build_cross_vendor_config if cross_vendor else build_patched_config
+    cfg, slot_plan, filament_keys = build_config(orig_cfg, printer_preset, filament_preset, slot_overrides)
     num_filaments = len(cfg.get("filament_settings_id") or [None])
-    vendor_filament = get_system_baseline("", resolve_filament_preset(printer_preset, filament_preset), "")
+    vendor_filament = system_baseline(printer_preset, resolve_filament_preset(printer_preset, filament_preset))
 
     # Parse approved Diagnostic Geometry Actions
     approved_actions = {c["action_type"]: c for c in diagnostic_cards if c.get("approved")}
@@ -735,6 +809,9 @@ def apply_3mf_optimizations(
             set_filament_key(cfg, "overhang_fan_speed", "100", slot_plan, filament_keys, num_filaments)
     if "SWITCH_BED_PLATE" in approved_actions:
         cfg["curr_bed_type"] = DEFAULT_BED_TYPE
+    do_rotate_yaw = do_rotate_yaw and is_bedslinger(printer_preset)
+    if native_app_version(printer_preset):
+        cfg["version"] = native_app_version(printer_preset)
     if do_rotate_yaw:
         cfg["default_acceleration"] = "4000"
         cfg["travel_acceleration"] = "4000"
@@ -769,7 +846,9 @@ def apply_3mf_optimizations(
                 num_val = val.split("mm")[0].strip()
                 cfg["brim_type"] = "outer_only"
                 cfg["brim_width"] = num_val
-                cfg["raft_first_layer_expansion"] = "8"
+                # Widen the first support layer a little for grip; 8mm made supports collide with
+                # neighbouring parts and the prime tower ("gcode path conflicts"), so slicing failed.
+                cfg["raft_first_layer_expansion"] = "2"
             elif key == "support_style":
                 cfg["enable_support"] = "1"
                 cfg["support_type"] = "tree(manual)"
@@ -840,6 +919,9 @@ def apply_3mf_optimizations(
                 "fuzzy_skin_thickness": "0.2",
             })
 
+    _fit_layer_heights(cfg)
+    # Must be last: slicers reset any unlisted key to the system preset value on load.
+    refresh_different_settings_to_system(cfg, printer_preset)
     applied_summary: list[str] = []
 
     if src_path.suffix.lower() == ".stl":
@@ -921,11 +1003,12 @@ def apply_3mf_optimizations(
                                         md_el.attrib["value"] = f"{float(md_el.attrib['value']) - half_dz:.14f}"
 
         # Patch inline <mesh> objects inside 3D/3dmodel.model (for Standard / PrusaSlicer .3mf files)
+        cradle_ids = support_cradle_object_ids(telemetry)
         inline_modified = False
         for oid, obj_el in inline_mesh_oids.items():
             o_info = obj_map.get(oid, {})
             do_flat = oid in flatten_oids
-            do_sup = do_reinforce_supports and "SLOTTED_OR_SMALL_SCREW" not in o_info.get("morphology_flags", [])
+            do_sup = do_reinforce_supports and oid in cradle_ids
             if do_flat or do_sup:
                 f_cnt, p_cnt = _patch_mesh_element(obj_el, do_flat, flatten_mm, do_sup)
                 if f_cnt > 0 or p_cnt > 0:
@@ -936,21 +1019,27 @@ def apply_3mf_optimizations(
 
         with zipfile.ZipFile(dst_path, "w", compression=zipfile.ZIP_DEFLATED) as zout:
             for item in zin.infolist():
+                if cross_vendor and RE_EMBEDDED_PRESET.fullmatch(item.filename):
+                    continue  # author's custom presets of the old printer: no parent on the new one
                 data = zin.read(item.filename)
                 if item.filename == "Metadata/project_settings.config":
                     data = json.dumps(cfg, indent=4).encode("utf-8")
+                elif item.filename == "Metadata/slice_info.config" and cross_vendor:
+                    data = _retarget_slice_info(data, PRINTERS[printer_preset]["printer_model_id"])
                 elif item.filename == "3D/3dmodel.model":
                     if flatten_oids or inline_modified:
                         if b"xmlns:BambuStudio=" in data:
                             root_3d.set("xmlns:BambuStudio", "http://schemas.bambulab.com/package/2021")
                         data = ET.tostring(root_3d, encoding="utf-8", xml_declaration=True)
+                    if cross_vendor:
+                        data = _set_application_tag(data, _target_application_tag(printer_preset, data))
                 elif item.filename == "Metadata/model_settings.config" and ms_root is not None:
                     data = ET.tostring(ms_root, encoding="utf-8", xml_declaration=True)
                 elif item.filename in model_to_oid:
                     oid = model_to_oid[item.filename]
                     o_info = obj_map.get(oid, {})
                     do_flat = oid in flatten_oids
-                    do_sup = do_reinforce_supports and "SLOTTED_OR_SMALL_SCREW" not in o_info.get("morphology_flags", [])
+                    do_sup = do_reinforce_supports and oid in cradle_ids
                     if do_flat or do_sup:
                         has_bbl_ns = b"xmlns:BambuStudio=" in data[:600]
                         mroot = ET.fromstring(data)
@@ -1009,7 +1098,8 @@ def _export_stl_to_3mf(
             applied_summary.append(f"{obj_name}: rotated 90° around Z-axis for bed-slinger Y-inertia")
 
         do_flat = flatten_mm > 0
-        do_sup = do_reinforce_supports and "SLOTTED_OR_SMALL_SCREW" not in flags
+        stl_ids = {o["id"] for o in telemetry.get("objects", [])[:1]}
+        do_sup = do_reinforce_supports and bool(stl_ids & support_cradle_object_ids(telemetry))
         dz = flatten_mm if do_flat else 0.20
 
         paint_mask = np.zeros(tris.shape[0], dtype=bool)
@@ -1049,6 +1139,7 @@ def _export_stl_to_3mf(
     model_xml = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         f'<model unit="millimeter" xml:lang="en-US" xmlns="{NS_URI_M}" xmlns:BambuStudio="{NS_URI_BBL}" xmlns:p="{NS_URI_P}">\n'
+        f'  <metadata name="Application">{_target_application_tag(cfg.get("printer_settings_id", ""), b"")}</metadata>\n'
         '  <metadata name="BambuStudio:3mfVersion">1</metadata>\n'
         '  <resources>\n'
         f'    <object id="1" name="{obj_name}" type="model">\n'

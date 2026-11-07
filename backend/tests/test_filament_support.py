@@ -21,6 +21,7 @@ from filament_profiles import (  # noqa: E402
     resolve_filament_preset,
 )
 from patcher import build_baseline_audit, guard_material_value  # noqa: E402
+from printer_catalog import profiles_for  # noqa: E402
 from profiler import load_bbl_system_profiles, resolve_profile  # noqa: E402
 from slicer_config_merge import build_patched_config, set_filament_key  # noqa: E402
 
@@ -67,8 +68,8 @@ class SlotPlanningTests(unittest.TestCase):
 @unittest.skipUnless(HAS_PROFILES, "Bambu Studio system profiles not installed")
 class PresetResolutionTests(unittest.TestCase):
     def test_every_printer_filament_pair_is_compatible(self):
-        profiles = load_bbl_system_profiles()
         for printer in PRINTERS:
+            profiles = profiles_for(printer)
             for key in FILAMENTS:
                 name = resolve_filament_preset(printer, key)
                 compat = resolve_profile(name, profiles).get("compatible_printers", [])
@@ -152,7 +153,7 @@ class NoVendorProfilesTests(unittest.TestCase):
 
         import patcher
 
-        with mock.patch.object(patcher, "get_system_baseline", return_value={}):
+        with mock.patch.object(patcher, "system_baseline", return_value={}):
             audit = build_baseline_audit(_telemetry({"curr_bed_type": "Textured PEI Plate"}), "Bambu Lab A1 0.4 nozzle", "PLA Lite")
         actions = {c["action_type"] for c in audit["diagnostic_cards"]}
         self.assertNotIn("SWITCH_BED_PLATE", actions)

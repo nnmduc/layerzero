@@ -27,6 +27,8 @@ from pydantic import BaseModel
 from ai_runner import _ensure_desktop_path, get_available_engines, stream_agent_audit
 from patcher import apply_3mf_optimizations, apply_stl_export, build_baseline_audit
 from filament_profiles import build_material_context, list_preset_options
+from printer_catalog import PRINTERS, normalize_printer
+from slicer_launcher import open_in_slicer, reveal_in_file_manager, slicer_installed
 from profiler import profile_3mf
 
 SUPPORTED_EXTENSIONS = (".3mf", ".stl")
@@ -44,7 +46,7 @@ STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 app = FastAPI(
     title="LayerZero 3MF AI Optimizer API",
     description="REST & SSE API for 3D Morphology Profiling, Headless AI Slicer Auditing, and Non-Destructive 3MF Patching.",
-    version="2.2.0",
+    version="2.3.0",
 )
 
 cors_origins = [o.strip() for o in os.environ.get("LAYERZERO_CORS_ORIGINS", "*").split(",") if o.strip()]
@@ -74,33 +76,6 @@ def _prune_old_sessions() -> None:
         pass
 
 
-def _open_in_bambu_studio(target: Path) -> None:
-    """Launches the exported .3mf file in Bambu Studio (or system default handler) across platforms."""
-    try:
-        if sys.platform == "darwin":
-            subprocess.Popen(["open", "-a", "BambuStudio", str(target)])
-        elif sys.platform == "win32":
-            os.startfile(str(target))  # type: ignore[attr-defined]
-        else:
-            subprocess.Popen(["xdg-open", str(target)])
-    except Exception:
-        if sys.platform == "darwin":
-            subprocess.Popen(["open", str(target)])
-
-
-def _reveal_in_file_manager(target: Path) -> None:
-    """Reveals the exported .3mf file in macOS Finder, Windows Explorer, or Linux file manager."""
-    try:
-        if sys.platform == "darwin":
-            subprocess.Popen(["open", "-R", str(target)])
-        elif sys.platform == "win32":
-            subprocess.Popen(["explorer", f"/select,{target}"])
-        else:
-            subprocess.Popen(["xdg-open", str(target.parent)])
-    except Exception:
-        pass
-
-
 class LoadLocalRequest(BaseModel):
     path: str
     printer_preset: str = "Bambu Lab A1 0.4 nozzle"
@@ -119,16 +94,19 @@ class ApplyRequest(BaseModel):
     diagnostic_cards: list[dict[str, Any]]
     settings_diff: list[dict[str, Any]]
     printer_preset: str = "Bambu Lab A1 0.4 nozzle"
+    # Printer the audit was computed for; differs from printer_preset when exporting for another printer.
+    audit_printer_preset: str | None = None
     filament_preset: str = "PLA Lite"
     slot_filaments: list[str | None] | None = None
     export_format: str = "3mf"
-    open_in_bambu: bool = False
+    open_in_slicer: bool = False  # opens the printer's own slicer (Bambu Studio / Snapmaker Orca)
+    open_in_bambu: bool = False  # legacy name of open_in_slicer
     reveal_in_finder: bool = False
 
 
 @app.get("/api/health")
 def health_check() -> dict[str, str]:
-    return {"status": "ok", "service": "layerzero-backend", "version": "2.2.0"}
+    return {"status": "ok", "service": "layerzero-backend", "version": "2.3.0"}
 
 
 @app.get("/api/presets")
@@ -277,6 +255,28 @@ async def analyze_with_ai_agent(
     )
 
 
+# Proposals that only exist for some printers (bed-slinger inertia, plate-specific temperatures).
+PRINTER_SPECIFIC_KEY_SUFFIXES = ("_acceleration", "plate_temp_initial_layer")
+
+
+def _settings_diff_for_printer(settings_diff: list[dict[str, Any]], telemetry: dict[str, Any],
+                               printer: str, filament: str) -> list[dict[str, Any]]:
+    """Keeps the user's approvals but re-proposes vendor-derived values for another export printer
+    (e.g. the audit ran for a U1 and the user exports the same project for a Bambu A1)."""
+    target = {
+        (s["key"], s.get("object_id", "global")): s
+        for s in build_baseline_audit(telemetry, printer, filament)["settings_diff"]
+    }
+    out: list[dict[str, Any]] = []
+    for s in settings_diff:
+        t = target.get((s["key"], s.get("object_id", "global")))
+        if t:
+            out.append({**s, "proposed_val": t["proposed_val"], "default_val": t["default_val"]})
+        elif not s["key"].endswith(PRINTER_SPECIFIC_KEY_SUFFIXES):
+            out.append(s)
+    return out
+
+
 @app.post("/api/apply")
 def apply_and_export(req: ApplyRequest) -> dict[str, Any]:
     if req.session_id not in SESSIONS:
@@ -291,7 +291,10 @@ def apply_and_export(req: ApplyRequest) -> dict[str, Any]:
             break
 
     fmt = "stl" if req.export_format.lower() == "stl" else "3mf"
-    dst_path = src_path.with_name(f"{stem}_LayerZero_Optimized.{fmt}")
+    target = PRINTERS[normalize_printer(req.printer_preset)]
+    # Tag non-Bambu exports so a U1 file is never confused with the Bambu one in ~/Downloads.
+    printer_tag = "" if target["vendor"] == "bbl" or fmt == "stl" else f"_{target['label']}-{target['nozzle']}"
+    dst_path = src_path.with_name(f"{stem}_LayerZero_Optimized{printer_tag}.{fmt}")
     if fmt == "stl":
         res = apply_stl_export(
             src_path=src_path,
@@ -299,11 +302,16 @@ def apply_and_export(req: ApplyRequest) -> dict[str, Any]:
             diagnostic_cards=req.diagnostic_cards,
         )
     else:
+        settings_diff = req.settings_diff
+        if req.audit_printer_preset and normalize_printer(req.audit_printer_preset) != normalize_printer(req.printer_preset):
+            settings_diff = _settings_diff_for_printer(
+                settings_diff, sess["telemetry"], req.printer_preset, req.filament_preset
+            )
         res = apply_3mf_optimizations(
             src_path=src_path,
             dst_path=dst_path,
             diagnostic_cards=req.diagnostic_cards,
-            settings_diff=req.settings_diff,
+            settings_diff=settings_diff,
             printer_preset=req.printer_preset,
             filament_preset=req.filament_preset,
             slot_overrides=req.slot_filaments,
@@ -322,15 +330,23 @@ def apply_and_export(req: ApplyRequest) -> dict[str, Any]:
 
     target_to_open = saved_downloads_path or dst_path
 
-    if req.open_in_bambu:
-        _open_in_bambu_studio(target_to_open)
-    elif req.reveal_in_finder:
-        _reveal_in_file_manager(target_to_open)
+    slicer = PRINTERS[normalize_printer(req.printer_preset)]["slicer"]
+    opened = False
+    if req.open_in_slicer or req.open_in_bambu:
+        # Never hand a U1 project to the system's default .3mf app (often Bambu Studio):
+        # without Snapmaker Orca installed, reveal the file instead.
+        if slicer == "bambu_studio" or slicer_installed(slicer):
+            open_in_slicer(slicer, target_to_open)
+            opened = True
+    if not opened and (req.reveal_in_finder or req.open_in_slicer or req.open_in_bambu):
+        reveal_in_file_manager(target_to_open)
 
     return {
         "session_id": req.session_id,
         "download_url": f"/api/download/{req.session_id}",
         "saved_path": str(target_to_open),
+        "slicer": slicer,
+        "opened_in_slicer": opened,
         **res,
     }
 

@@ -150,6 +150,16 @@ export interface FilamentSlotInfo {
 export interface MaterialContext {
   printer_preset: string;
   printer_label: string;
+  printer_vendor: 'bbl' | 'snapmaker';
+  kinematics: 'bedslinger' | 'corexy' | 'corexy_toolchanger';
+  nozzle: string;
+  /** Independent toolheads (Snapmaker U1: 4); null for AMS printers feeding one nozzle. */
+  max_tools: number | null;
+  slicer: SlicerId;
+  /** Vendor the author saved the file for; null for STL / PrusaSlicer files. */
+  source_vendor: 'bbl' | 'snapmaker' | null;
+  /** True when export rebuilds the project from the target printer's presets (e.g. Bambu file -> U1). */
+  cross_vendor_retarget: boolean;
   enclosed: boolean;
   filament: string;
   filament_preset: string;
@@ -160,8 +170,29 @@ export interface MaterialContext {
   mixed_model_families: boolean;
 }
 
+export type SlicerId = 'bambu_studio' | 'snapmaker_orca';
+
+export interface PrinterOption {
+  id: string;
+  label: string;
+  vendor: 'bbl' | 'snapmaker';
+  vendor_label: string;
+  nozzle: string;
+  kinematics: string;
+  enclosed: boolean;
+  max_tools: number | null;
+  slicer: SlicerId;
+}
+
+export interface SlicerInfo {
+  label: string;
+  download_url: string;
+  installed: boolean;
+}
+
 export interface PresetOptions {
-  printers: { id: string; label: string; enclosed: boolean }[];
+  printers: PrinterOption[];
+  slicers: Record<SlicerId, SlicerInfo>;
   filaments: { id: string; label: string; family: string; presets: Record<string, string> }[];
   default_printer: string;
   default_filament: string;

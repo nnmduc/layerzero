@@ -50,6 +50,7 @@ def build_material_advice_cards(
     family = material_family(filament_base_name(filament))
     label = policy_for(filament)["label"]
     enclosed = PRINTERS.get(printer, {}).get("enclosed", False)
+    vendor = PRINTERS.get(printer, {}).get("vendor_label", "Bambu Lab")
     cards: list[dict[str, Any]] = []
 
     # 1. Author designed the project for a different material family than the one selected.
@@ -60,14 +61,14 @@ def build_material_advice_cards(
             f"File gốc dùng {author_group}, bạn đang chọn {label}",
             (
                 f"Tác giả cấu hình project cho {author_group}. LayerZero sẽ áp nhiệt độ, quạt, flow và khe hở Support "
-                f"theo profile {label} của Bambu cho các slot thân mẫu; slot Support/Interface được giữ nguyên."
+                f"theo profile {label} của {vendor} cho các slot thân mẫu; slot Support/Interface được giữ nguyên."
             ),
             f"Chuyển thân mẫu sang {label} · Giữ nguyên slot Support",
             "Đổi vật liệu",
         ))
 
     # 2. Current plate is unsupported for this filament (vendor temperature 0).
-    bed = bed_type_of(orig_cfg)
+    bed = bed_type_of(orig_cfg, printer)
     bed_key = f"{BED_TYPE_TEMP_KEY[bed]}_initial_layer"
     # Only a vendor value explicitly set to 0 means "unsupported"; a missing key means no profiles installed.
     if bed_key in sys_def and fmt_val(sys_def[bed_key]) in ("0", ""):
@@ -75,7 +76,7 @@ def build_material_advice_cards(
             "card_switch_bed_plate",
             f"{label} không hỗ trợ {BED_TYPE_LABEL[bed]}",
             (
-                f"Profile Bambu đặt nhiệt độ {BED_TYPE_LABEL[bed]} = 0 cho {label}, tức là không nên in trên mặt bàn này "
+                f"Profile {vendor} đặt nhiệt độ {BED_TYPE_LABEL[bed]} = 0 cho {label}, tức là không nên in trên mặt bàn này "
                 f"(PETG có thể dính chết vào Cool Plate; PLA không bám tốt trên Engineering Plate). "
                 f"Hãy thay sang tấm Textured PEI trên máy."
             ),

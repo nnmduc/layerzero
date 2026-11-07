@@ -88,9 +88,34 @@ Additionally, vertices at $z_{\text{rel}} \le 0.24\text{ mm}$ are highlighted in
 
 Later edits go through `set_filament_key()`, which writes only to the retargeted slots for per-filament keys. Per-extruder-variant lists (e.g. X1C's 2-entry lists for one slot) are rewritten only when every slot is retargeted.
 
-### 3.2 Printer, Filament & Plate Resolution (`backend/filament_profiles.py`)
+### 3.1b Cross-Vendor Retarget (`backend/cross_vendor_config.py`)
 
-- `resolve_filament_preset(printer, "PLA Basic")` returns the shortest instantiable preset named `Bambu PLA Basic @...` whose `compatible_printers` includes the printer. If Bambu Studio's profiles are missing, it falls back to a static suffix per printer.
+`build_patched_config()` only patches keys the author's file already has, so it cannot turn a Bambu project into a Snapmaker U1 one. The Bambu file has none of the toolchanger keys: `machine_tool_change_time`, `retract_length_toolchange`, `wipe_tower_wall_type`, 4-entry per-extruder arrays and the standard/high-flow pairs.
+
+When `printer_catalog.needs_cross_vendor_retarget()` is true (source vendor ≠ target vendor; STL/PrusaSlicer files count as Bambu), `patcher.apply_3mf_optimizations()` calls `build_cross_vendor_config()` instead. It works in three steps:
+
+1. **Start from the target printer**: take the target's machine preset and its default process preset (per nozzle), plus one target filament preset per slot.
+   - Retargeted slots use the selected filament.
+   - Kept slots (support, other materials) map to the target vendor's generic preset of the same type.
+2. **Lay the author's model choices on top** (`CARRY_OVER_KEYS`): layer height (only if it fits the nozzle range), walls, infill, supports, brim, ironing, seam, and the prime tower position (clamped to the bed).
+3. **Write the project identity**:
+   - `printer_settings_id`, `print_settings_id` and `filament_settings_id` are set to system preset names, so the slicer does not report "customized presets".
+   - `inherits_group` is blank, and `different_settings_to_system` is computed against those presets.
+   - Toolchangers get a zero flush matrix and no `filament_map`.
+   - `version`, `Application` (3D model metadata) and `printer_model_id` (slice info) are rewritten for the target slicer: `Snapmaker_Orca-2.4.1` for the U1.
+
+Slot order is preserved, so filament N becomes toolhead TN and `paint_color` and `extruder` ids stay valid.
+
+### 3.2 Printer, Filament & Plate Resolution (`backend/printer_catalog.py`, `backend/filament_profiles.py`)
+
+- **Printer catalog**: `printer_catalog.PRINTERS` lists every target with its vendor (`bbl` / `snapmaker`), `kinematics` (`bedslinger` / `corexy` / `corexy_toolchanger`), nozzle, `max_tools`, slicer and `printer_model_id`.
+  - Bed-slinger rules (Y-inertia card, `ROTATE_YAW`, 4000 mm/s² acceleration) are only proposed when `kinematics == "bedslinger"`.
+- **Where presets come from**: `profiles_for(printer)` returns the vendor's system presets.
+  - Bambu Lab: the local Bambu Studio install.
+  - Snapmaker U1: the bundled `vendor_profiles/snapmaker-u1-presets.json`. It holds Snapmaker Orca v2.4.1 presets, flattened by `scripts/build-snapmaker-u1-profiles.py`.
+  - `system_baseline()` merges machine, filament and process values from the right vendor.
+
+- `resolve_filament_preset(printer, "PLA Basic")` maps the UI filament to the vendor's base name (`Bambu PLA Basic`, or `Generic PLA` on the U1). It returns the shortest instantiable preset named `<base>` or `<base> @...` whose `compatible_printers` includes the printer. If Bambu Studio's profiles are missing, it falls back to a static suffix per printer.
 - `bed_type_of()` maps `curr_bed_type` (`Textured PEI Plate`, `High Temp Plate`, `Cool Plate`, `Engineering Plate`, `Supertack Plate`) to the vendor temperature key prefix. A vendor value of `0` means the plate is unsupported for that filament, which raises a `SWITCH_BED_PLATE` card.
 - `MATERIAL_POLICIES` holds the material deltas on top of vendor values (support Z gap, interface spacing, brim gap, Z-hop type, ironing flow/speed, overhang fan, weak layer adhesion). `patcher.guard_material_value()` enforces the floors again at export, so values from the AI agent cannot break them.
 - `material_advice_cards.py` adds cards the slicer cannot apply (dry PETG, glue on Smooth PEI, open the door for PLA on enclosed printers, material mismatch with the author's file).
@@ -123,6 +148,10 @@ LayerZero Studio supports **macOS** (`.app` / `.dmg`), **Windows** (`.exe` NSIS 
 2. **OS-Aware Storage & Bambu Studio Integration (`backend/main.py` & `backend/profiler.py`)**:
    - **Session Storage**: `~/Library/Application Support/LayerZero/storage` (macOS), `%LOCALAPPDATA%\LayerZero\storage` (Windows), or `~/.local/share/layerzero/storage` (Linux).
    - **Bambu Studio System Profiles**: Automatically resolves `BBL` system JSON profiles across macOS (`~/Library/Application Support/BambuStudio`), Windows (`%APPDATA%\BambuStudio`), and Linux (`~/.config/BambuStudio` or Flatpak `~/.var/app/com.bambulab.BambuStudio`).
-   - **1-Click Launch & File Manager Reveal**: Uses `open -a BambuStudio` / `open -R` on macOS, `os.startfile` / `explorer /select` on Windows, and `xdg-open` on Linux.
+   - **1-Click Launch & File Manager Reveal** (`backend/slicer_launcher.py`): opens the selected printer's own slicer.
+     - Bambu Studio on Bambu Lab printers. Snapmaker Orca on the U1: macOS bundle id `com.snapmaker.snapmaker-orca`, Windows `%ProgramFiles%\Snapmaker_Orca\snapmaker-orca.exe`, Linux `snapmaker-orca` on `PATH`.
+     - Local files are passed to the app directly, because the `snapmaker-orca://open?file=` scheme only downloads web URLs.
+     - `/api/presets` reports which slicers are installed.
+     - Reveal uses `open -R` / `explorer /select` / `xdg-open`.
 3. **Clean Process Tree Termination (`kill_sidecar`)**:
    - When the user quits the desktop app (`RunEvent::Exit`), `kill_sidecar` sends `SIGTERM` to the entire Unix process group (`-pid`) on macOS/Linux or invokes `taskkill /F /T /PID <pid>` on Windows, ensuring both the PyInstaller bootloader and child Uvicorn worker processes exit cleanly without leaving orphan processes on port `8000`.

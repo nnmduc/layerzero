@@ -2,7 +2,8 @@ import React from 'react';
 import { MaterialContext } from '../types';
 
 /**
- * Shows which Bambu presets and plate LayerZero will use for the loaded file, and the AMS slots.
+ * Shows which vendor presets and plate LayerZero will use for the loaded file, and the filament
+ * slots (AMS slots on Bambu Lab, independent toolheads T1–T4 on the Snapmaker U1).
  * Slots are editable only when the file mixes material families in its model bodies
  * (e.g. PLA body + PETG body); otherwise the single filament picker in the header applies
  * to the body slots and support/interface slots keep the author's settings.
@@ -23,7 +24,8 @@ export const FilamentSlotPanel: React.FC<FilamentSlotPanelProps> = ({
   onSlotChange,
 }) => {
   const editable = context.mixed_model_families;
-  const showSlots = context.slots.length > 1 || editable;
+  const maxTools = context.max_tools;
+  const showSlots = context.slots.length > 1 || editable || context.cross_vendor_retarget;
 
   return (
     <div className="mt-3 p-3 rounded-[14px] bg-white dark:bg-[#1C1C1E] border border-black/[0.07] dark:border-white/[0.08]">
@@ -36,7 +38,7 @@ export const FilamentSlotPanel: React.FC<FilamentSlotPanelProps> = ({
           <span className="font-mono text-[#1D1D1F] dark:text-[#E5E5EA]">{context.filament_preset}</span>
         </div>
         <div>
-          Máy {context.printer_label} {context.enclosed ? '(kín)' : '(mở)'} · Mặt bàn{' '}
+          Máy {context.printer_label} {context.nozzle}mm {context.enclosed ? '(kín)' : '(mở)'} · Mặt bàn{' '}
           <span className="font-medium text-[#1D1D1F] dark:text-[#E5E5EA]">{context.bed_label}</span>
         </div>
       </div>
@@ -46,8 +48,20 @@ export const FilamentSlotPanel: React.FC<FilamentSlotPanelProps> = ({
           <div className="text-[10.5px] font-medium text-[#6E6E73] dark:text-[#8E8E93]">
             {editable
               ? 'File trộn nhiều vật liệu thân mẫu: chọn vật liệu cho từng slot'
+              : maxTools
+              ? `Filament → đầu in (${context.printer_label} có ${maxTools} đầu in độc lập)`
               : 'Slot AMS (slot Support / vật liệu khác được giữ nguyên)'}
           </div>
+          {context.cross_vendor_retarget && (
+            <div className="text-[10.5px] text-[#0071E3] leading-snug">
+              File được lưu cho máy khác: khi xuất, LayerZero dựng lại project từ profile hệ thống của {context.printer_label}.
+            </div>
+          )}
+          {maxTools !== null && context.slots.length > maxTools && (
+            <div className="text-[10.5px] text-[#FF3B30] leading-snug">
+              File có {context.slots.length} filament, vượt {maxTools} đầu in: gán lại filament {maxTools + 1}–{context.slots.length} trong slicer.
+            </div>
+          )}
           {context.slots.map((slot) => {
             const current = slotFilaments ? slotFilaments[slot.index] : slot.target_filament;
             return (
@@ -56,8 +70,15 @@ export const FilamentSlotPanel: React.FC<FilamentSlotPanelProps> = ({
                   className="w-3 h-3 rounded-full border border-black/20 shrink-0"
                   style={{ backgroundColor: slot.colour || '#FFFFFF' }}
                 ></span>
-                <span className="font-mono text-[#6E6E73] dark:text-[#8E8E93] shrink-0">#{slot.index + 1}</span>
-                <span className="truncate flex-1 text-[#1D1D1F] dark:text-[#E5E5EA]" title={slot.preset}>
+                <span
+                  className={`font-mono shrink-0 ${
+                    maxTools !== null && slot.index >= maxTools ? 'text-[#FF3B30]' : 'text-[#6E6E73] dark:text-[#8E8E93]'
+                  }`}
+                  title={maxTools !== null && slot.index >= maxTools ? 'Không có đầu in cho filament này' : undefined}
+                >
+                  {maxTools !== null ? `T${slot.index + 1}` : `#${slot.index + 1}`}
+                </span>
+                <span className="truncate flex-1 text-[#1D1D1F] dark:text-[#E5E5EA]" title={slot.target_preset ?? slot.preset}>
                   {slot.type || slot.preset || 'Không rõ'}
                 </span>
                 {editable ? (
@@ -81,7 +102,7 @@ export const FilamentSlotPanel: React.FC<FilamentSlotPanelProps> = ({
                         : 'bg-black/[0.05] dark:bg-white/[0.08] text-[#6E6E73] dark:text-[#A1A1A6]'
                     }`}
                   >
-                    {current ? `→ ${current}` : 'Giữ nguyên'}
+                    {current ? `→ ${current}` : context.cross_vendor_retarget ? `→ ${slot.target_preset ?? 'Generic'}` : 'Giữ nguyên'}
                   </span>
                 )}
               </div>

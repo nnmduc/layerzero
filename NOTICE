@@ -1,0 +1,16 @@
+LayerZero Studio
+Copyright (c) LayerZero Studio contributors. Licensed under the MIT License (see LICENSE).
+
+Third-party data
+----------------
+
+backend/vendor_profiles/snapmaker-u1-presets.json
+  Snapmaker U1 machine, process and filament presets, taken from the Snapmaker Orca
+  v2.4.1 release (commit bac6fd5c1e1c23ddf057cf6471ba4ed7ed621c4c), directory
+  resources/profiles/Snapmaker, and flattened by backend/scripts/build-snapmaker-u1-profiles.py.
+  Source: https://github.com/Snapmaker/OrcaSlicer (also https://github.com/Snapmaker/snapmaker-profiles)
+  Snapmaker Orca is licensed under the GNU Affero General Public License v3.0.
+  Copyright (c) Snapmaker and the OrcaSlicer / PrusaSlicer / Bambu Studio contributors.
+  These presets are redistributed unmodified apart from flattening their inheritance chain
+  and dropping file-identity fields. Snapmaker and U1 are trademarks of Snapmaker; LayerZero
+  Studio is not affiliated with or endorsed by Snapmaker.

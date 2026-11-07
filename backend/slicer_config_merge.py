@@ -15,8 +15,10 @@ from filament_profiles import (
     plan_slot_filaments,
     resolve_filament_preset,
     resolve_process_preset,
+    system_baseline,
 )
-from profiler import get_system_baseline, load_bbl_system_profiles, resolve_profile
+from printer_catalog import profiles_for
+from profiler import resolve_profile
 
 # Keys that define multi-color AMS slots, purge matrix, prime tower, or machine geometry and must NOT be wiped
 PRESERVE_ORIG_KEYS = {
@@ -80,7 +82,8 @@ def build_patched_config(
     plan = plan_slot_filaments(slots, filament, slot_overrides)
 
     # 1. Machine + process keys from the vendor baseline for this printer.
-    machine_process = get_system_baseline(printer, "", resolve_process_preset(printer, "0.16mm Optimal"))
+    process_name = resolve_process_preset(printer, "0.16mm Optimal")
+    machine_process = system_baseline(printer, "", process_name)
     cfg = dict(orig_cfg)
     # Switching printer (e.g. A1 -> A1 mini) must take the new machine's bed geometry.
     printer_changed = bool(orig_cfg) and orig_cfg.get("printer_settings_id") != printer
@@ -101,7 +104,7 @@ def build_patched_config(
             cfg[k] = v[0] if isinstance(v, list) and len(v) == 1 else v
 
     # 2. Filament keys, slot by slot, from each planned slot's own vendor preset.
-    profiles = load_bbl_system_profiles()
+    profiles = profiles_for(printer)
     slot_presets = {i: resolve_filament_preset(printer, key) for i, key in plan.items()}
     slot_profiles = {i: resolve_profile(name, profiles) for i, name in slot_presets.items()}
     filament_keys: set[str] = set()
@@ -130,6 +133,8 @@ def build_patched_config(
             cfg[k] = v[0] if isinstance(v, list) and len(v) == 1 else v
 
     cfg["printer_settings_id"] = printer
+    # System presets carry an empty `print_settings_id`; name the process preset the values came from.
+    cfg["print_settings_id"] = process_name
     ids = orig_cfg.get("filament_settings_id")
     ids = list(ids) if isinstance(ids, list) and len(ids) == num_filaments else [""] * num_filaments
     for i, name in slot_presets.items():

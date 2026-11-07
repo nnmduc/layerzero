@@ -157,8 +157,10 @@ def get_system_baseline(
     printer_name: str = "Bambu Lab A1 0.4 nozzle",
     filament_name: str = "Bambu PLA Lite @BBL A1",
     process_name: str = "0.20mm Standard @BBL A1",
+    profiles: dict[str, dict] | None = None,
 ) -> dict[str, Any]:
-    profiles = load_bbl_system_profiles()
+    """Merged machine + filament + process values; `profiles` defaults to the local Bambu presets."""
+    profiles = load_bbl_system_profiles() if profiles is None else profiles
     m = resolve_profile(printer_name, profiles)
     f = resolve_profile(filament_name, profiles)
     p = resolve_profile(process_name, profiles)

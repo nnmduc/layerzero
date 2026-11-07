@@ -12,37 +12,20 @@ profile; the policies below only hold material-specific deltas and safety floors
 from functools import lru_cache
 from typing import Any
 
-from profiler import load_bbl_system_profiles, resolve_profile
-
-# Printers offered in the UI. `fallback_*` are only used when Bambu Studio's system profiles
-# are not installed on this machine, so the app still writes sensible preset names.
-PRINTERS: dict[str, dict[str, Any]] = {
-    "Bambu Lab A1 0.4 nozzle": {
-        "label": "A1",
-        "enclosed": False,
-        "fallback_filament_suffix": "@BBL A1",
-        "fallback_process_suffix": "@BBL A1",
-    },
-    "Bambu Lab A1 mini 0.4 nozzle": {
-        "label": "A1 mini",
-        "enclosed": False,
-        "fallback_filament_suffix": "@BBL A1M",
-        "fallback_process_suffix": "@BBL A1M",
-    },
-    "Bambu Lab P1S 0.4 nozzle": {
-        "label": "P1S",
-        "enclosed": True,
-        "fallback_filament_suffix": "@BBL X1C",
-        "fallback_process_suffix": "@BBL X1C",
-    },
-    "Bambu Lab X1 Carbon 0.4 nozzle": {
-        "label": "X1C",
-        "enclosed": True,
-        "fallback_filament_suffix": "@BBL X1C",
-        "fallback_process_suffix": "@BBL X1C",
-    },
-}
-DEFAULT_PRINTER = "Bambu Lab A1 0.4 nozzle"
+from printer_catalog import (
+    DEFAULT_PRINTER,
+    PRINTERS,
+    SLICERS,
+    VENDOR_FILAMENTS,
+    load_snapmaker_u1_bundle,
+    needs_cross_vendor_retarget,
+    normalize_printer,
+    profiles_for,
+    source_vendor_of,
+    vendor_of,
+)
+from slicer_launcher import slicer_installed
+from profiler import get_system_baseline, resolve_profile
 
 # Filament choices offered in the UI: key -> Bambu preset base name (before " @BBL ...").
 FILAMENTS: dict[str, str] = {
@@ -124,10 +107,6 @@ MATERIAL_POLICIES: dict[str, dict[str, Any]] = {
 MODEL_FAMILIES = ("PLA", "PLA_LITE", "PETG")
 
 
-def normalize_printer(printer: str) -> str:
-    return printer if printer in PRINTERS else DEFAULT_PRINTER
-
-
 def filament_base_name(value: str) -> str:
     """Accepts a UI key ('PETG HF') or a full preset name ('Bambu PETG HF @BBL A1')."""
     value = (value or "").strip()
@@ -147,11 +126,12 @@ def filament_key_for(value: str) -> str:
     return DEFAULT_FILAMENT
 
 
-def _pick_compatible(prefix: str, printer: str, profiles: dict[str, dict]) -> str | None:
-    """Shortest instantiable preset name starting with `prefix` that lists `printer` as compatible."""
+def _pick_compatible(base: str, printer: str, profiles: dict[str, dict]) -> str | None:
+    """Shortest instantiable preset named `base` or `base @...` that lists `printer` as compatible.
+    (Snapmaker Orca 2.4.1 names its 0.4 nozzle U1 presets without a suffix, e.g. `Generic PLA`.)"""
     matches: list[str] = []
     for name in profiles:
-        if not name.startswith(prefix):
+        if name != base and not name.startswith(f"{base} @"):
             continue
         resolved = resolve_profile(name, profiles)
         if str(resolved.get("instantiation", "true")).lower() != "true":
@@ -161,19 +141,60 @@ def _pick_compatible(prefix: str, printer: str, profiles: dict[str, dict]) -> st
     return min(matches, key=len) if matches else None
 
 
-@lru_cache(maxsize=64)
+def vendor_filament_base(printer: str, filament: str) -> str:
+    """Preset base name of a UI filament key (or any preset name) in the printer vendor's catalog."""
+    base = filament_base_name(filament)
+    if vendor_of(printer) != "bbl" and base in FILAMENTS.values():
+        return VENDOR_FILAMENTS[vendor_of(printer)][filament_key_for(base)]
+    return base
+
+
+@lru_cache(maxsize=128)
 def resolve_filament_preset(printer: str, filament: str) -> str:
     printer = normalize_printer(printer)
-    base = filament_base_name(filament)
-    picked = _pick_compatible(f"{base} @", printer, load_bbl_system_profiles())
+    base = vendor_filament_base(printer, filament)
+    picked = _pick_compatible(base, printer, profiles_for(printer))
     return picked or f"{base} {PRINTERS[printer]['fallback_filament_suffix']}"
 
 
 @lru_cache(maxsize=32)
 def resolve_process_preset(printer: str, quality: str = "0.20mm Standard") -> str:
+    """Process preset of `quality` for the printer; U1 printers use Snapmaker's default process."""
     printer = normalize_printer(printer)
-    picked = _pick_compatible(f"{quality} @", printer, load_bbl_system_profiles())
+    if vendor_of(printer) == "snapmaker":
+        default = load_snapmaker_u1_bundle()["default_process"].get(printer)
+        picked = _pick_compatible(quality, printer, profiles_for(printer))
+        return picked or default or f"{quality} {PRINTERS[printer]['fallback_process_suffix']}"
+    picked = _pick_compatible(quality, printer, profiles_for(printer))
     return picked or f"{quality} {PRINTERS[printer]['fallback_process_suffix']}"
+
+
+def system_baseline(printer: str, filament_preset: str = "", process_preset: str = "") -> dict[str, Any]:
+    """Machine + filament + process system values merged, read from the printer vendor's presets."""
+    printer = normalize_printer(printer)
+    return get_system_baseline(printer, filament_preset, process_preset, profiles_for(printer))
+
+
+def equivalent_filament_preset(printer: str, slot: dict[str, Any]) -> str:
+    """Target-vendor preset for a slot the user keeps as-is (support, other materials), matched by
+    material type: e.g. `Bambu Support for PLA @BBL A1` -> `Generic Support For PLA` on a U1."""
+    if vendor_of(printer) == "bbl":
+        base = filament_base_name(slot.get("preset") or "") or FILAMENTS[DEFAULT_FILAMENT]
+        return resolve_filament_preset(printer, base)
+    fam = slot.get("family")
+    ftype = (slot.get("type") or "").upper().replace("-S", "")
+    candidates = {
+        "SUPPORT": ["Generic Support For PLA", "Generic PVA", "Generic PLA"],
+        "PETG": ["Generic PETG HF", "Generic PETG"],
+        "PLA": ["Generic PLA"],
+        "PLA_LITE": ["Generic PLA"],
+    }.get(fam or "", [f"Generic {ftype}", "Generic PLA"] if ftype else ["Generic PLA"])
+    profiles = profiles_for(printer)
+    for base in candidates:
+        picked = _pick_compatible(base, printer, profiles)
+        if picked:
+            return picked
+    return resolve_filament_preset(printer, "PLA Basic")
 
 
 def material_family(preset_name: str, filament_type: str = "") -> str:
@@ -200,11 +221,19 @@ def policy_for(filament: str) -> dict[str, Any]:
     return MATERIAL_POLICIES.get(fam, MATERIAL_POLICIES["PLA"])
 
 
-def bed_type_of(project_settings: dict[str, Any]) -> str:
+# Plates the Snapmaker U1 profile set defines temperatures for; any other Bambu plate becomes Textured PEI.
+SNAPMAKER_BED_TYPES = ("Textured PEI Plate", "High Temp Plate")
+
+
+def bed_type_of(project_settings: dict[str, Any], printer: str | None = None) -> str:
+    """The plate the project prints on, mapped to one the target printer actually has."""
     raw = project_settings.get("curr_bed_type")
     if isinstance(raw, list):
         raw = raw[0] if raw else None
-    return raw if raw in BED_TYPE_TEMP_KEY else DEFAULT_BED_TYPE
+    bed = raw if raw in BED_TYPE_TEMP_KEY else DEFAULT_BED_TYPE
+    if printer and vendor_of(printer) == "snapmaker" and bed not in SNAPMAKER_BED_TYPES:
+        return DEFAULT_BED_TYPE
+    return bed
 
 
 def _slot_list(project_settings: dict[str, Any], key: str, n: int) -> list[str]:
@@ -290,15 +319,28 @@ def build_material_context(
     printer = normalize_printer(printer)
     slots = describe_filament_slots(project_settings)
     plan = plan_slot_filaments(slots, filament, slot_overrides)
-    bed = bed_type_of(project_settings)
+    bed = bed_type_of(project_settings, printer)
+    retarget = needs_cross_vendor_retarget(project_settings, printer)
     for s in slots:
         target = plan.get(s["index"])
         s["target_filament"] = target
-        s["target_preset"] = resolve_filament_preset(printer, target) if target else None
+        if target:
+            s["target_preset"] = resolve_filament_preset(printer, target)
+        else:
+            # Kept slots still need a preset that exists on another vendor's printer.
+            s["target_preset"] = equivalent_filament_preset(printer, s) if retarget else None
+    meta = PRINTERS[printer]
     return {
         "printer_preset": printer,
-        "printer_label": PRINTERS[printer]["label"],
-        "enclosed": PRINTERS[printer]["enclosed"],
+        "printer_label": meta["label"],
+        "printer_vendor": meta["vendor"],
+        "kinematics": meta["kinematics"],
+        "nozzle": meta["nozzle"],
+        "max_tools": meta["max_tools"],
+        "slicer": meta["slicer"],
+        "source_vendor": source_vendor_of(project_settings),
+        "cross_vendor_retarget": retarget,
+        "enclosed": meta["enclosed"],
         "filament": filament_key_for(filament),
         "filament_preset": resolve_filament_preset(printer, filament),
         "family": material_family(filament_base_name(filament)),
@@ -310,9 +352,23 @@ def build_material_context(
 
 
 def list_preset_options() -> dict[str, Any]:
-    """Printer and filament choices, with the exact Bambu preset each pair resolves to."""
+    """Printer and filament choices, with the exact vendor preset each pair resolves to."""
     return {
-        "printers": [{"id": p, "label": meta["label"], "enclosed": meta["enclosed"]} for p, meta in PRINTERS.items()],
+        "printers": [
+            {
+                "id": p,
+                "label": meta["label"],
+                "vendor": meta["vendor"],
+                "vendor_label": meta["vendor_label"],
+                "nozzle": meta["nozzle"],
+                "kinematics": meta["kinematics"],
+                "enclosed": meta["enclosed"],
+                "max_tools": meta["max_tools"],
+                "slicer": meta["slicer"],
+            }
+            for p, meta in PRINTERS.items()
+        ],
+        "slicers": {sid: {**info, "installed": slicer_installed(sid)} for sid, info in SLICERS.items()},
         "filaments": [
             {
                 "id": key,

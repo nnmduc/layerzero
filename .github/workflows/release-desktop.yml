@@ -1,6 +1,6 @@
 name: Build & Release Desktop (Linux & Windows)
 
-# Releases are cut only from version tags (e.g. v2.2.0). Branch pushes are covered by ci.yml;
+# Releases are cut only from version tags (e.g. v2.3.0, or v2.3.0-beta.1 for a pre-release). Branch pushes are covered by ci.yml;
 # publishing on a branch push would create a release and tag named after the branch.
 on:
   push:
@@ -67,6 +67,7 @@ jobs:
             --name "layerzero-backend-x86_64-unknown-linux-gnu" \
             --distpath "../frontend/src-tauri/binaries" \
             --add-data "schemas:schemas" \
+            --add-data "vendor_profiles:vendor_profiles" \
             --hidden-import "uvicorn.logging" \
             --hidden-import "uvicorn.loops" \
             --hidden-import "uvicorn.loops.auto" \
@@ -91,9 +92,11 @@ jobs:
 
       - name: Stage Linux Release Assets
         run: |
+          # File names carry the tag's version (e.g. v2.3.0-beta.1 -> LayerZero_2.3.0-beta.1_...).
+          V="${GITHUB_REF_NAME#v}"
           mkdir -p release-assets
-          cp frontend/src-tauri/target/release/bundle/appimage/*.AppImage release-assets/LayerZero_2.2.0_Linux_x64.AppImage
-          cp frontend/src-tauri/target/release/bundle/deb/*.deb release-assets/LayerZero_2.2.0_Linux_amd64.deb
+          cp frontend/src-tauri/target/release/bundle/appimage/*.AppImage "release-assets/LayerZero_${V}_Linux_x64.AppImage"
+          cp frontend/src-tauri/target/release/bundle/deb/*.deb "release-assets/LayerZero_${V}_Linux_amd64.deb"
           ls -lh release-assets/
 
       - name: Upload Linux Artifacts
@@ -142,6 +145,7 @@ jobs:
             --name "layerzero-backend-x86_64-pc-windows-msvc" `
             --distpath "../frontend/src-tauri/binaries" `
             --add-data "schemas;schemas" `
+            --add-data "vendor_profiles;vendor_profiles" `
             --hidden-import "uvicorn.logging" `
             --hidden-import "uvicorn.loops" `
             --hidden-import "uvicorn.loops.auto" `
@@ -165,9 +169,10 @@ jobs:
       - name: Stage Windows Release Assets
         shell: pwsh
         run: |
+          $v = $env:GITHUB_REF_NAME -replace '^v', ''
           New-Item -ItemType Directory -Force -Path "release-assets" | Out-Null
-          Get-ChildItem "frontend/src-tauri/target/release/bundle/nsis/*.exe" | Select-Object -First 1 | Copy-Item -Destination "release-assets/LayerZero_2.2.0_Windows_x64-setup.exe"
-          Get-ChildItem "frontend/src-tauri/target/release/bundle/msi/*.msi" | Select-Object -First 1 | Copy-Item -Destination "release-assets/LayerZero_2.2.0_Windows_x64.msi"
+          Get-ChildItem "frontend/src-tauri/target/release/bundle/nsis/*.exe" | Select-Object -First 1 | Copy-Item -Destination "release-assets/LayerZero_${v}_Windows_x64-setup.exe"
+          Get-ChildItem "frontend/src-tauri/target/release/bundle/msi/*.msi" | Select-Object -First 1 | Copy-Item -Destination "release-assets/LayerZero_${v}_Windows_x64.msi"
           Get-ChildItem "release-assets"
 
       - name: Upload Windows Artifacts
@@ -189,27 +194,40 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      - name: Publish / Update GitHub Release v2.2.0
+      - name: Write Release Notes
+        # A tag with a pre-release suffix (v2.3.0-beta.1) publishes a GitHub pre-release for testers;
+        # its macOS DMGs are shared privately instead of being linked from the public download host.
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          {
+            echo "## LayerZero Studio v${V} — Universal \`.3mf\` AI Printability & Aesthetics Optimizer"
+            echo
+            if [[ "$V" == *-* ]]; then
+              echo "> **Beta for the tester group.** See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/CHANGELOG.md) for what changed."
+              echo
+              echo "#### 🍎 macOS: signed DMGs are shared with testers directly."
+            else
+              echo "#### 🍎 macOS (Apple Developer ID Signed)"
+              echo "- **Apple Silicon (M1 – M4)**: [LayerZero_${V}_Apple_Silicon_arm64.dmg](https://dl.layerzero.io.vn/LayerZero_${V}_Apple_Silicon_arm64.dmg)"
+              echo "- **Mac Intel (x86_64)**: [LayerZero_${V}_Intel_x64.dmg](https://dl.layerzero.io.vn/LayerZero_${V}_Intel_x64.dmg)"
+            fi
+            echo
+            echo "#### 🪟 Windows (Windows 10 / 11 64-bit)"
+            echo "- **Windows Installer (NSIS \`.exe\`)**: \`LayerZero_${V}_Windows_x64-setup.exe\` *(Attached below)*"
+            echo "- **Windows MSI Package (\`.msi\`)**: \`LayerZero_${V}_Windows_x64.msi\` *(Attached below)*"
+            echo
+            echo "#### 🐧 Linux (Ubuntu / Debian / Fedora / Arch x86_64)"
+            echo "- **Universal AppImage**: \`LayerZero_${V}_Linux_x64.AppImage\` *(Attached below — \`chmod +x\` and run)*"
+            echo "- **Ubuntu / Debian Package (\`.deb\`)**: \`LayerZero_${V}_Linux_amd64.deb\` *(Attached below — \`sudo apt install ./LayerZero_${V}_Linux_amd64.deb\`)*"
+          } > release-notes.md
+          cat release-notes.md
+
+      - name: Publish / Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: "LayerZero Studio v2.2.0 (macOS · Windows · Linux)"
-          body: |
-            ## LayerZero Studio v2.2.0 — Universal `.3mf` AI Printability & Aesthetics Optimizer
-
-            ### 📥 Direct Downloads
-
-            #### 🍎 macOS (Apple Developer ID Signed)
-            - **Apple Silicon (M1 – M4)**: [LayerZero_2.2.0_Apple_Silicon_arm64.dmg](https://dl.layerzero.io.vn/LayerZero_2.2.0_Apple_Silicon_arm64.dmg)
-            - **Mac Intel (x86_64)**: [LayerZero_2.2.0_Intel_x64.dmg](https://dl.layerzero.io.vn/LayerZero_2.2.0_Intel_x64.dmg)
-
-            #### 🪟 Windows (Windows 10 / 11 64-bit)
-            - **Windows Installer (NSIS `.exe`)**: `LayerZero_2.2.0_Windows_x64-setup.exe` *(Attached below)*
-            - **Windows MSI Package (`.msi`)**: `LayerZero_2.2.0_Windows_x64.msi` *(Attached below)*
-
-            #### 🐧 Linux (Ubuntu / Debian / Fedora / Arch x86_64)
-            - **Universal AppImage**: `LayerZero_2.2.0_Linux_x64.AppImage` *(Attached below — `chmod +x` and run)*
-            - **Ubuntu / Debian Package (`.deb`)**: `LayerZero_2.2.0_Linux_amd64.deb` *(Attached below — `sudo apt install ./LayerZero_2.2.0_Linux_amd64.deb`)*
+          name: "LayerZero Studio ${{ github.ref_name }} (macOS · Windows · Linux)"
+          body_path: release-notes.md
           draft: false
-          prerelease: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: artifacts/*

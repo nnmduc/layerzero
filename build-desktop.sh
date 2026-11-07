@@ -6,6 +6,11 @@ export PATH="$HOME/.cargo/bin:$PATH"
 # Set APPLE_SIGNING_IDENTITY in your environment for Developer ID signing,
 # or leave unset to default to ad-hoc signing ("-") for local/community builds.
 SIGN_ID="${APPLE_SIGNING_IDENTITY:--}"
+# DMG file version: the app version from tauri.conf.json, or RELEASE_VERSION for a pre-release
+# (e.g. RELEASE_VERSION=2.3.0-beta.1 names files LayerZero_2.3.0-beta.1_*.dmg; the app stays 2.3.0
+# because Windows MSI versions must be numeric).
+APP_VERSION="$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$DIR/frontend/src-tauri/tauri.conf.json")"
+RELEASE_VERSION="${RELEASE_VERSION:-$APP_VERSION}"
 ENTITLEMENTS="$DIR/frontend/src-tauri/entitlements.plist"
 DMG_OUT_DIR="$DIR/frontend/src-tauri/target/release/bundle/dmg"
 mkdir -p "$DIR/frontend/src-tauri/binaries" "$DMG_OUT_DIR"
@@ -36,6 +41,7 @@ build_sidecar() {
         --workpath "$DIR/backend/build_pyinstaller_$TARGET" \
         --specpath "$DIR/backend/build_pyinstaller_$TARGET" \
         --add-data "$DIR/backend/schemas:schemas" \
+        --add-data "$DIR/backend/vendor_profiles:vendor_profiles" \
         --hidden-import "uvicorn.logging" \
         --hidden-import "uvicorn.loops" \
         --hidden-import "uvicorn.loops.auto" \
@@ -134,6 +140,7 @@ if [ "$OS_NAME" = "Linux" ]; then
       --workpath "$DIR/backend/build_pyinstaller_$TARGET_TRIPLE" \
       --specpath "$DIR/backend/build_pyinstaller_$TARGET_TRIPLE" \
       --add-data "$DIR/backend/schemas:schemas" \
+      --add-data "$DIR/backend/vendor_profiles:vendor_profiles" \
       --hidden-import "uvicorn.logging" \
       --hidden-import "uvicorn.loops" \
       --hidden-import "uvicorn.loops.auto" \
@@ -168,12 +175,12 @@ fi
 
 # 1. Build Apple Silicon (aarch64-apple-darwin)
 build_sidecar "aarch64-apple-darwin" "$DIR/backend/.venv" ""
-build_tauri_dmg "aarch64-apple-darwin" "LayerZero_2.2.0_Apple_Silicon_arm64.dmg" "LayerZero (Apple Silicon)"
+build_tauri_dmg "aarch64-apple-darwin" "LayerZero_${RELEASE_VERSION}_Apple_Silicon_arm64.dmg" "LayerZero (Apple Silicon)"
 
 # 2. Optionally build Intel (x86_64-apple-darwin) if .venv-x86_64 is present
 if [ -d "$DIR/backend/.venv-x86_64" ]; then
   build_sidecar "x86_64-apple-darwin" "$DIR/backend/.venv-x86_64" "arch -x86_64"
-  build_tauri_dmg "x86_64-apple-darwin" "LayerZero_2.2.0_Intel_x64.dmg" "LayerZero (Intel)"
+  build_tauri_dmg "x86_64-apple-darwin" "LayerZero_${RELEASE_VERSION}_Intel_x64.dmg" "LayerZero (Intel)"
 fi
 
 echo ""

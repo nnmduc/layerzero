@@ -1,6 +1,6 @@
 [package]
 name = "layerzero"
-version = "2.2.0"
+version = "2.3.0"
 description = "LayerZero Studio v2.1 - Universal 3MF AI Printability & Aesthetics Optimizer"
 authors = ["LayerZero Studio <hello@layerzero.io.vn>"]
 homepage = "https://layerzero.io.vn"

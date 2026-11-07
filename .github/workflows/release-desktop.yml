@@ -228,6 +228,7 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: "LayerZero Studio ${{ github.ref_name }} (macOS · Windows · Linux)"
           body_path: release-notes.md
-          draft: false
+          # The repo is public: beta builds go to a draft release that only collaborators can see.
+          draft: ${{ contains(github.ref_name, '-') }}
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: artifacts/*

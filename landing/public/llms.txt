@@ -17,8 +17,15 @@
   - Tự động tìm đường phân cắt giấu sẹo vào nếp áo, nếp gấp.
   - Tự động tạo ngàm chốt cơ khí tự định vị (Peg & Socket, Ball Joint) tương thích máy in Bambu Lab.
 
+- **Form3D (Bộ sinh Text-to-3D Modular)**:
+  - Pipeline 5 bước modular sinh mô hình 3D (.stl & .glb) kín nước (watertight) từ mô tả văn bản tiếng Anh/Việt.
+  - Tối ưu native cho Apple Silicon Metal Performance Shaders (MPS), chạy cục bộ 100% offline với chi phí 0đ.
+  - Tự động vát phẳng đáy tiếp xúc Z = 0 bám bàn PEI và Taubin smoothing khử gai nhọn.
+  - Three.js WebGL Studio trực quan hỗ trợ xoay 360°, chế độ Clay Shading và Wireframe Topology.
+
 ## Liên kết và Tài nguyên
 - Trang chủ LayerZero: https://layerzero.io.vn/
 - Trang thông tin PegForge: https://layerzero.io.vn/pegforge
+- Trang thông tin Form3D: https://layerzero.io.vn/form3d
 - Tải về & Mã nguồn mở: https://github.com/nnmduc/layerzero/releases
 - Liên hệ & Góp ý: hello@layerzero.io.vn

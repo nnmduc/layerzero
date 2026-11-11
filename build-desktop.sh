@@ -6,6 +6,9 @@ export PATH="$HOME/.cargo/bin:$PATH"
 # Set APPLE_SIGNING_IDENTITY in your environment for Developer ID signing,
 # or leave unset to default to ad-hoc signing ("-") for local/community builds.
 SIGN_ID="${APPLE_SIGNING_IDENTITY:--}"
+# Set APPLE_NOTARY_PROFILE (defaults to "layerzero-notary" if available) to notarize and staple DMGs.
+# Set SKIP_NOTARIZATION=1 to bypass.
+NOTARY_PROFILE="${APPLE_NOTARY_PROFILE:-layerzero-notary}"
 # DMG file version: the app version from tauri.conf.json, or RELEASE_VERSION for a pre-release
 # (e.g. RELEASE_VERSION=2.3.0-beta.1 names files LayerZero_2.3.0-beta.1_*.dmg; the app stays 2.3.0
 # because Windows MSI versions must be numeric).
@@ -112,6 +115,20 @@ build_tauri_dmg() {
     echo "Signing $DMG_NAME with $SIGN_ID..."
     codesign --force --timestamp --sign "$SIGN_ID" "$DMG_PATH"
     codesign --verify --verbose=2 "$DMG_PATH"
+
+    if [ "$SKIP_NOTARIZATION" != "1" ] && [ -n "$NOTARY_PROFILE" ]; then
+      echo "------------------------------------------------------------"
+      echo "Notarizing $DMG_NAME via Apple Notary (profile: $NOTARY_PROFILE)..."
+      echo "------------------------------------------------------------"
+      if xcrun notarytool submit "$DMG_PATH" --keychain-profile "$NOTARY_PROFILE" --wait; then
+        echo "Stapling notarization ticket to $DMG_NAME..."
+        xcrun stapler staple "$DMG_PATH"
+        echo "Validating Gatekeeper assessment..."
+        spctl -a -vvv -t install "$DMG_PATH" || true
+      else
+        echo "⚠️ Notarization failed or timed out. Please check logs."
+      fi
+    fi
   fi
 }
 

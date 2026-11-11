@@ -6,6 +6,7 @@ import { PegforgePipeline } from './PegforgePipeline';
 import { PegforgeSeamDiff } from './PegforgeSeamDiff';
 import { PegforgeJointWorkbench } from './PegforgeJointWorkbench';
 import { PegforgeBento } from './PegforgeBento';
+import { EcosystemSection } from '../components/EcosystemSection';
 import { PegforgeRegistration } from './PegforgeRegistration';
 import { PegforgeFooter } from './PegforgeFooter';
 
@@ -55,6 +56,7 @@ export const PegforgePage: React.FC<PegforgePageProps> = ({ darkMode, onToggleTh
         <PegforgeSeamDiff />
         <PegforgeJointWorkbench />
         <PegforgeBento />
+        <EcosystemSection currentProduct="pegforge" />
         <PegforgeRegistration />
       </main>
 

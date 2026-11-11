@@ -13,6 +13,7 @@ const SITE_URL = 'https://layerzero.io.vn';
 const BASE_ROUTES = [
   { path: '/', priority: '1.0', changefreq: 'weekly' },
   { path: '/pegforge', priority: '0.8', changefreq: 'weekly' },
+  { path: '/form3d', priority: '0.8', changefreq: 'weekly' },
   { path: '/changelog', priority: '0.8', changefreq: 'weekly' },
 ];
 

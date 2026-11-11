@@ -7,12 +7,17 @@ import { FilamentSupportSection } from './components/FilamentSupportSection';
 import { ProblemsWorkbench } from './components/ProblemsWorkbench';
 import { LearningDiffSection } from './components/LearningDiffSection';
 import { DownloadSection } from './components/DownloadSection';
+import { EcosystemSection } from './components/EcosystemSection';
 import { ContactSection } from './components/ContactSection';
 import { ChangelogPage } from './components/ChangelogPage';
 
-// Code-splitting PegforgePage to optimize initial bundle size
+// Code-splitting PegforgePage and Form3dPage to optimize initial bundle size
 const PegforgePage = React.lazy(() =>
   import('./pegforge/PegforgePage').then((m) => ({ default: m.PegforgePage }))
+);
+
+const Form3dPage = React.lazy(() =>
+  import('./form3d/Form3dPage').then((m) => ({ default: m.Form3dPage }))
 );
 
 export const App: React.FC = () => {
@@ -56,6 +61,12 @@ export const App: React.FC = () => {
       (window.location.hash.startsWith('#/pegforge') ||
         window.location.search.includes('page=pegforge')));
 
+  const isForm3d =
+    currentPath.startsWith('/form3d') ||
+    (typeof window !== 'undefined' &&
+      (window.location.hash.startsWith('#/form3d') ||
+        window.location.search.includes('page=form3d')));
+
   if (currentPath.replace(/\/+$/, '') === '/changelog') {
     return <ChangelogPage darkMode={darkMode} onToggleTheme={handleToggleTheme} />;
   }
@@ -74,6 +85,20 @@ export const App: React.FC = () => {
     );
   }
 
+  if (isForm3d) {
+    return (
+      <Suspense
+        fallback={
+          <div className="min-h-[100dvh] flex items-center justify-center bg-apple-bg dark:bg-[#0D0D0F] text-[#6E6E73] dark:text-zinc-400 font-mono text-sm">
+            Đang tải Form3D Studio...
+          </div>
+        }
+      >
+        <Form3dPage darkMode={darkMode} onToggleTheme={handleToggleTheme} />
+      </Suspense>
+    );
+  }
+
   return (
     <div className="min-h-[100dvh] flex flex-col">
       <Navbar darkMode={darkMode} onToggleTheme={handleToggleTheme} />
@@ -85,6 +110,7 @@ export const App: React.FC = () => {
         <ProblemsWorkbench />
         <LearningDiffSection />
         <DownloadSection />
+        <EcosystemSection currentProduct="layerzero" />
         <ContactSection />
       </main>
     </div>

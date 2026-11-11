@@ -48,10 +48,17 @@ frontend/src-tauri/binaries/layerzero-backend*
 # Local planning notes & review reports
 plans/
 
+# Local exports & email automation scripts
+exports/
+send_via_*.py
+export_from_cf.*
+
 # Environment & Editor Directories
 .env
 .env.local
 .env.*.local
+.*_cred
+.resend_cred
 .vscode/
 .idea/
 *.swp
